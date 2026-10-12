@@ -2,6 +2,41 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 
+// Returns the "Admissions team" chat and marks staff messages in it as read,
+// unless ?peek=1 (used when refreshing the inbox while another conversation is open).
+export async function GET(req: Request) {
+  const markRead = new URL(req.url).searchParams.get("peek") !== "1";
+  const session = await auth();
+  if (!session?.user || session.user.role !== "STUDENT") {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const application = await prisma.application.findUnique({
+    where: { studentId: session.user.id },
+    select: { id: true },
+  });
+  if (!application) return Response.json({ error: "Not found" }, { status: 404 });
+
+  const thread = await prisma.messageThread.findUnique({
+    where: { applicationId: application.id },
+    include: {
+      messages: {
+        orderBy: { sentAt: "asc" },
+        include: { sender: { select: { firstName: true, lastName: true } } },
+      },
+    },
+  });
+
+  if (thread && markRead) {
+    await prisma.message.updateMany({
+      where: { threadId: thread.id, senderRole: "STAFF", isRead: false },
+      data: { isRead: true, readAt: new Date() },
+    });
+  }
+
+  return Response.json({ messages: thread?.messages ?? [] });
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user || session.user.role !== "STUDENT") {

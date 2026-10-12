@@ -17,6 +17,7 @@ import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { DeleteAccountPanel } from "./DeleteAccountPanel";
 import { StageDocumentsPanel } from "./StageDocumentsPanel";
 import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
+import { getMessagingMode } from "@/lib/messaging";
 import Link from "next/link";
 
 export default async function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,6 +75,16 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   const canVerifyDocs = hasPermission(session, "VERIFY_DOCUMENTS");
   const canEditProfile = hasPermission(session, "EDIT_APPLICANT_PROFILE");
   const canWithdraw = hasPermission(session, "WITHDRAW_APPLICATION");
+
+  const messagingMode = await getMessagingMode();
+
+  // Staff viewing the conversation counts as reading it (drives the student's "Seen" receipts).
+  if (canSendMessages && messagingMode === "CHAT" && app.messageThread) {
+    await prisma.message.updateMany({
+      where: { threadId: app.messageThread.id, senderRole: "STUDENT", isRead: false },
+      data: { isRead: true, readAt: new Date() },
+    });
+  }
 
   const currentIndex = stageDisplayIndex(app.currentStage);
   const rawStageIndex = STAGE_ORDER.indexOf(app.currentStage);
@@ -372,8 +383,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
 
       </div>
 
-      {/* Messages */}
-      {canSendMessages && (
+      {/* Messages — only the style chosen in Settings → Communication is shown */}
+      {canSendMessages && messagingMode === "CHAT" && (
         <div className="mt-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "#555" }}>Conversation</p>
           <MessagesChatWidget
@@ -384,15 +395,9 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
         </div>
       )}
 
-      {/* Threads (Trial) */}
-      {canSendMessages && (
+      {canSendMessages && messagingMode === "THREADS" && (
         <div className="mt-5">
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Threads</p>
-            <span className="text-[9px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(199,154,59,0.15)", color: "#8a6416" }}>
-              Trial
-            </span>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "#555" }}>Conversations</p>
           <MailThreadsPanel
             baseUrl={`/api/admin/applicants/${id}/mail-threads`}
             viewerRole="STAFF"

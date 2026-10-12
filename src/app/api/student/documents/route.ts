@@ -6,6 +6,17 @@ import { logAudit } from "@/lib/audit";
 import { notifyAdminsOfDocumentUpload } from "@/lib/notifications";
 import { createTimelineEvent } from "@/lib/timeline";
 
+const ALLOWED_DOCUMENT_TYPES = [
+  "GENERAL",
+  "TASK_SUBMISSION",
+  "OFFER_CONDITION_EVIDENCE",
+  "CITIZENSHIP_PROOF",
+  "IELTS_CERTIFICATE",
+  "CHIROPRACTOR_RECOMMENDATION",
+];
+// Must match the application form, which only accepts PDFs for these.
+const PDF_ONLY_DOCUMENT_TYPES = ["CITIZENSHIP_PROOF", "IELTS_CERTIFICATE"];
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user || session.user.role !== "STUDENT") {
@@ -20,7 +31,8 @@ export async function POST(req: Request) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  const documentType = (formData.get("documentType") as string) ?? "GENERAL";
+  const requestedType = formData.get("documentType") as string | null;
+  const documentType = requestedType && ALLOWED_DOCUMENT_TYPES.includes(requestedType) ? requestedType : "GENERAL";
   const taskId = formData.get("taskId") as string | null;
   const offerConditionId = formData.get("offerConditionId") as string | null;
 
@@ -46,6 +58,10 @@ export async function POST(req: Request) {
     if (!task) return Response.json({ error: "Task not found." }, { status: 404 });
     if (!isMimeTypeAllowed(file.type, task.requiredDocumentCategory)) {
       return Response.json({ error: categoryRejectionMessage(task.requiredDocumentCategory) }, { status: 400 });
+    }
+  } else if (PDF_ONLY_DOCUMENT_TYPES.includes(documentType)) {
+    if (file.type !== "application/pdf") {
+      return Response.json({ error: "This document must be a PDF." }, { status: 400 });
     }
   } else {
     // General (unlinked) uploads are document evidence — images are not accepted here.

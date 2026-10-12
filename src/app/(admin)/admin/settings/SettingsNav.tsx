@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin/settings", label: "General" },
   { href: "/admin/settings/task-templates", label: "Stage Task Templates" },
   { href: "/admin/settings/document-templates", label: "Document Templates" },
+  { href: "/admin/settings/communication", label: "Communication" },
   { href: "/admin/settings/email", label: "Email" },
 ];
 

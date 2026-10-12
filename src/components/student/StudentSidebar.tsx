@@ -134,7 +134,6 @@ export function StudentSidebar({ firstName, lastName, pendingTaskCount, unreadMe
       title: "Communication",
       items: [
         { label: "Messages", href: "/messages", icon: <MailIcon />, badge: unreadMessageCount || undefined },
-        { label: "Threads (Trial)", href: "/mail-threads", icon: <MailIcon /> },
       ],
     },
     {

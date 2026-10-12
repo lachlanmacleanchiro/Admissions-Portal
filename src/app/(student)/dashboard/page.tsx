@@ -1,10 +1,98 @@
 ﻿import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { countUnreadForStudent } from "@/lib/studentInbox";
 import { ProgressTracker } from "@/components/student/ProgressTracker";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { STAGE_STATUS_LABELS, STAGE_DISPLAY_STEPS, stageDisplayIndex } from "@/lib/stages";
+
+type AttentionTone = "urgent" | "soon" | "info";
+
+const ATTENTION_COLORS: Record<AttentionTone, string> = {
+  urgent: "#c0392b",
+  soon: "#C79A3B",
+  info: "#114E3B",
+};
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  CITIZENSHIP_PROOF: "Citizenship / residency proof",
+  IELTS_CERTIFICATE: "IELTS certificate",
+  CHIROPRACTOR_RECOMMENDATION: "Chiropractor recommendation letter",
+};
+
+interface AttentionItem {
+  key: string;
+  tone: AttentionTone;
+  title: string;
+  detail?: string;
+  href: string;
+  action: string;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function formatShortDate(date: Date) {
+  return date.toLocaleDateString("en-NZ", { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** Everything the student should act on, most urgent first. */
+function buildAttentionItems({
+  tasks,
+  documents,
+  unreadCount,
+  pendingOffer,
+}: {
+  tasks: { id: string; title: string; status: string; dueDate: Date | null }[];
+  documents: { documentType: string; status: string }[];
+  unreadCount: number;
+  pendingOffer: { acceptanceDeadline: Date | null } | null;
+}): AttentionItem[] {
+  const now = Date.now();
+  const urgent: AttentionItem[] = [];
+  const soon: AttentionItem[] = [];
+  const info: AttentionItem[] = [];
+
+  for (const task of tasks) {
+    const due = task.dueDate ? new Date(task.dueDate) : null;
+    if (task.status === "REJECTED") {
+      urgent.push({ key: `task-${task.id}`, tone: "urgent", title: `Changes needed: ${task.title}`, detail: "The admissions team has asked you to update this.", href: `/tasks/${task.id}`, action: "Fix it" });
+    } else if (due && due.getTime() < now) {
+      urgent.push({ key: `task-${task.id}`, tone: "urgent", title: `Overdue: ${task.title}`, detail: `Was due ${formatShortDate(due)}`, href: `/tasks/${task.id}`, action: "Complete" });
+    } else if (due && due.getTime() - now <= 7 * DAY_MS) {
+      soon.push({ key: `task-${task.id}`, tone: "soon", title: task.title, detail: `Due ${formatShortDate(due)}`, href: `/tasks/${task.id}`, action: "Complete" });
+    }
+  }
+
+  // Application documents whose latest upload was rejected (documents are newest first).
+  const seenTypes = new Set<string>();
+  for (const doc of documents) {
+    if (seenTypes.has(doc.documentType)) continue;
+    seenTypes.add(doc.documentType);
+    if (doc.status === "REJECTED" && DOCUMENT_TYPE_LABELS[doc.documentType]) {
+      urgent.push({ key: `doc-${doc.documentType}`, tone: "urgent", title: `Replace your ${DOCUMENT_TYPE_LABELS[doc.documentType].toLowerCase()}`, detail: "Your upload wasn't accepted.", href: "/documents", action: "Replace" });
+    }
+  }
+
+  if (pendingOffer) {
+    const deadline = pendingOffer.acceptanceDeadline ? new Date(pendingOffer.acceptanceDeadline) : null;
+    const target = deadline && deadline.getTime() - now <= 7 * DAY_MS ? soon : info;
+    target.push({
+      key: "offer",
+      tone: target === soon ? "soon" : "info",
+      title: "You have an offer of place",
+      detail: deadline ? `Respond by ${formatShortDate(deadline)}` : "Review your offer and respond.",
+      href: "/offer",
+      action: "View offer",
+    });
+  }
+
+  if (unreadCount > 0) {
+    info.push({ key: "messages", tone: "info", title: `${unreadCount} unread message${unreadCount === 1 ? "" : "s"} from the admissions team`, href: "/messages", action: "Read" });
+  }
+
+  return [...urgent, ...soon, ...info];
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -24,15 +112,17 @@ export default async function DashboardPage() {
       tasks: {
         where: { status: { in: ["PENDING", "IN_PROGRESS", "REJECTED"] }, audience: "STUDENT" },
         orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-        take: 6,
       },
-      messageThread: {
-        include: {
-          messages: {
-            where: { isRead: false, senderRole: "STAFF" },
-            select: { id: true },
-          },
-        },
+      documents: {
+        where: { taskId: null, offerConditionId: null },
+        orderBy: { uploadedAt: "desc" },
+        select: { documentType: true, status: true },
+      },
+      offers: {
+        where: { responseStatus: "PENDING" },
+        orderBy: { issuedAt: "desc" },
+        take: 1,
+        select: { acceptanceDeadline: true },
       },
     },
   });
@@ -41,8 +131,14 @@ export default async function DashboardPage() {
     return <div className="p-8 text-text-muted">Application not found.</div>;
   }
 
-  const unreadCount = application.messageThread?.messages.length ?? 0;
+  const unreadCount = await countUnreadForStudent(application.id);
   const stageIndex = stageDisplayIndex(application.currentStage);
+  const attentionItems = buildAttentionItems({
+    tasks: application.tasks,
+    documents: application.documents,
+    unreadCount,
+    pendingOffer: application.depositStatus === "NOT_PAID" ? application.offers[0] ?? null : null,
+  });
 
   return (
     <div className="px-8 py-8 max-w-4xl">
@@ -53,26 +149,40 @@ export default async function DashboardPage() {
       <h1 className="font-serif text-4xl text-text mb-2">
         Kia ora, {session.user.firstName}
       </h1>
-      {application.tasks.length > 0 && (
-        <p className="text-text-muted text-sm">
-          You have {application.tasks.length} task{application.tasks.length !== 1 ? "s" : ""} requiring attention
-          {application.tasks[0]?.dueDate ? ` before your ${STAGE_STATUS_LABELS[application.currentStage].toLowerCase()}` : ""}.
-        </p>
-      )}
 
-      {/* Alert banner */}
-      {(unreadCount > 0 || application.tasks.some((t) => t.dueDate && new Date(t.dueDate) < new Date())) && (
-        <div className="mt-5 px-4 py-3 flex items-start gap-3 rounded-xl" style={{ backgroundColor: "rgba(199,154,59,0.08)", borderLeft: "3px solid #C79A3B" }}>
-          <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" style={{ color: "#C79A3B" }}>
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+      {/* Needs your attention */}
+      {attentionItems.length > 0 ? (
+        <section className="mt-5 bg-white rounded-2xl shadow-sm overflow-hidden" aria-labelledby="attention-heading">
+          <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
+            <h2 id="attention-heading" className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>
+              Needs your attention
+            </h2>
+            <span className="text-xs" style={{ color: "#999" }}>
+              {attentionItems.length} item{attentionItems.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <ul>
+            {attentionItems.map((item, i) => (
+              <li key={item.key} style={{ borderBottom: i < attentionItems.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+                <Link href={item.href} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-black/[0.02]">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ATTENTION_COLORS[item.tone] }} aria-hidden="true" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold" style={{ color: "#222" }}>{item.title}</span>
+                    {item.detail && <span className="block text-xs mt-0.5" style={{ color: "#888" }}>{item.detail}</span>}
+                  </span>
+                  <span className="text-xs font-semibold flex-shrink-0" style={{ color: "#114E3B" }}>{item.action} →</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <p className="mt-3 text-sm flex items-center gap-2" style={{ color: "#114E3B" }}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-          <p className="text-sm text-text">
-            <strong>Action needed:</strong>{" "}
-            {application.tasks.find((t) => t.dueDate)
-              ? `Your ${application.tasks.find((t) => t.dueDate)?.title?.toLowerCase()} is due soon. Please complete it before the deadline.`
-              : `You have ${unreadCount} unread message${unreadCount !== 1 ? "s" : ""} from the admissions team.`}
-          </p>
-        </div>
+          You&apos;re all caught up. We&apos;ll let you know when there&apos;s something to do.
+        </p>
       )}
 
       {/* Progress tracker */}
@@ -89,11 +199,12 @@ export default async function DashboardPage() {
       {/* Tasks */}
       {application.tasks.length > 0 && (
         <div className="mt-8">
-          <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-4">
-            What needs your attention
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold tracking-widest uppercase text-text-muted">Your open tasks</p>
+            <Link href="/tasks" className="text-xs font-semibold" style={{ color: "#114E3B" }}>View all tasks →</Link>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            {application.tasks.map((task) => {
+            {application.tasks.slice(0, 6).map((task) => {
               const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
               const isRejected = task.status === "REJECTED";
               return (

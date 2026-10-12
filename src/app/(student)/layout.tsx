@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { countUnreadForStudent } from "@/lib/studentInbox";
 import { StudentSidebar } from "@/components/student/StudentSidebar";
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
     redirect("/login");
   }
 
-  // Fetch unread counts for sidebar badges
+  // Fetch counts for sidebar badges
   const application = await prisma.application.findUnique({
     where: { studentId: session.user.id },
     select: {
@@ -20,19 +21,11 @@ export default async function StudentLayout({ children }: { children: React.Reac
           tasks: { where: { status: { in: ["PENDING", "IN_PROGRESS", "REJECTED"] }, audience: "STUDENT" } },
         },
       },
-      messageThread: {
-        select: {
-          messages: {
-            where: { isRead: false, senderRole: "STAFF" },
-            select: { id: true },
-          },
-        },
-      },
     },
   });
 
   const pendingTaskCount = application?._count.tasks ?? 0;
-  const unreadMessageCount = application?.messageThread?.messages.length ?? 0;
+  const unreadMessageCount = application ? await countUnreadForStudent(application.id) : 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
