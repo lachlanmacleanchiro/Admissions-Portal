@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import { Montserrat, Open_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const montserrat = Montserrat({
+// Fonts are bundled in the repo (variable-weight, Latin subset, SIL Open Font
+// License) so builds never depend on fetching from Google Fonts.
+const montserrat = localFont({
+  src: "./fonts/montserrat-latin-wght-normal.woff2",
   variable: "--font-montserrat",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
 });
 
-const openSans = Open_Sans({
+const openSans = localFont({
+  src: "./fonts/open-sans-latin-wght-normal.woff2",
   variable: "--font-opensans",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600"],
+  weight: "300 800",
 });
 
 export const metadata: Metadata = {
