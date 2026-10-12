@@ -36,7 +36,7 @@ export default async function AdminTasksPage() {
   const otherTasks = tasks.filter((t) => !isOverdue(t.dueDate) && !isDueThisWeek(t.dueDate));
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
+    <div className="px-8 py-7 w-full">
       <WipBanner>This page is work in progress. Only some logic has been implemented.</WipBanner>
       <div className="flex items-start justify-between mb-6">
         <div>

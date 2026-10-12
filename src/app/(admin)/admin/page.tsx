@@ -89,7 +89,7 @@ export default async function AdminDashboardPage({
   ];
 
   return (
-    <div className="px-8 py-7 max-w-6xl">
+    <div className="px-8 py-7 w-full">
       <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
         {intakeFilter.label}
       </p>
@@ -138,7 +138,7 @@ export default async function AdminDashboardPage({
           <p className="text-xs font-semibold tracking-widest uppercase text-text-muted">Pipeline Snapshot</p>
           <Link href="/admin/pipeline" className="text-xs text-green hover:underline">View full pipeline →</Link>
         </div>
-        <div className="grid grid-cols-7 gap-3">
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
           {STAGES.map((stage) => {
             const apps = pipelineByStage[stage] ?? [];
             const count = stageMap[stage] ?? 0;

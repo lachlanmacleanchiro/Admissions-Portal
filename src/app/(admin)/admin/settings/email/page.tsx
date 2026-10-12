@@ -19,7 +19,7 @@ export default async function EmailSettingsPage() {
   ]);
 
   return (
-    <div className="px-8 py-7 max-w-4xl">
+    <div className="px-8 py-7 w-full">
       <h1 className="font-serif text-2xl text-text mb-4">Settings</h1>
       <SettingsNav />
 

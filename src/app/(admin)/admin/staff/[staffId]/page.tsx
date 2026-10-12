@@ -94,7 +94,7 @@ export default async function StaffPermissionsPage({ params }: { params: Promise
   ) as Record<PermissionKey, boolean>;
 
   return (
-    <div className="px-8 py-7 max-w-2xl">
+    <div className="px-8 py-7 w-full">
       <Link href="/admin/staff" className="text-xs text-text-muted hover:text-green">← Staff Management</Link>
       <div className="flex items-center gap-3 mt-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-green flex items-center justify-center text-white font-bold">

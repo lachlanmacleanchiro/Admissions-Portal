@@ -11,7 +11,7 @@ export default async function TaskTemplatesSettingsPage() {
   const taskTemplates = await prisma.taskTemplate.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
 
   return (
-    <div className="px-8 py-7 max-w-4xl">
+    <div className="px-8 py-7 w-full">
       <h1 className="font-serif text-2xl text-text mb-4">Settings</h1>
       <SettingsNav />
 

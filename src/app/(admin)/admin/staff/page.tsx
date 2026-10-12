@@ -25,7 +25,7 @@ export default async function StaffPage() {
   });
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
+    <div className="px-8 py-7 w-full">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-serif text-2xl text-text">Staff Management</h1>
       </div>

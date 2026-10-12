@@ -24,7 +24,7 @@ export default async function TaskSubmissionsPage() {
   const seen = tasks.filter((t) => t.acknowledgedAt);
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
+    <div className="px-8 py-7 w-full">
       <div className="mb-6">
         <h1 className="font-serif text-2xl text-text">Task Submissions</h1>
         <p className="text-sm text-text-muted mt-1">{tasks.length} submitted tasks awaiting review, {unseen.length} unseen.</p>

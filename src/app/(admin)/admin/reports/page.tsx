@@ -52,7 +52,7 @@ export default async function ReportsPage({
   });
 
   return (
-    <div className="px-8 py-7 max-w-4xl">
+    <div className="px-8 py-7 w-full">
       <WipBanner>
         This page is work in progress. Only some logic has been implemented. Feedback is needed on what sort of reports you&apos;d like to see.
       </WipBanner>
