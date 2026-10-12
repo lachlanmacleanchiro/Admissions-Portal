@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server (.next/standalone) with only the files the app
+  // needs at runtime, so the Docker image doesn't ship every dependency.
+  output: "standalone",
   allowedDevOrigins: ["nzcc.prettygoodtechsupport.com", "nzcc2.prettygoodtechsupport.com"],
   devIndicators: false,
   // The built-in image optimizer's response cache throws ("LRUCache: calculateSize

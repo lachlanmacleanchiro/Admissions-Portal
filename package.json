@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "seed": "tsx prisma/seed.ts",
-    "reminders:run": "tsx scripts/send-task-reminders.ts"
+    "reminders:run": "tsx scripts/send-task-reminders.ts",
+    "build:scripts": "node scripts/build-scripts.mjs",
+    "reminders:run:prod": "node dist/send-task-reminders.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -40,6 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"
