@@ -3,15 +3,20 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { IntakeYearForm } from "./IntakeYearForm";
 import { TaskTemplateManager } from "./TaskTemplateManager";
+import { DocumentTemplateManager } from "./DocumentTemplateManager";
 import { EmailNotificationsToggle } from "./EmailNotificationsToggle";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "STAFF" || !session.user.isGlobalAdmin) redirect("/admin");
 
-  const [intakeYears, taskTemplates, appSettings, applicationErrors] = await Promise.all([
+  const [intakeYears, taskTemplates, documentTemplates, appSettings, applicationErrors] = await Promise.all([
     prisma.intakeYear.findMany({ orderBy: { year: "desc" } }),
     prisma.taskTemplate.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.documentTemplate.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      include: { updatedBy: { select: { firstName: true, lastName: true } } },
+    }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
     prisma.applicationErrorLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
@@ -31,6 +36,27 @@ export default async function SettingsPage() {
           Configure the tasks automatically created when an application enters each stage.
         </p>
         <TaskTemplateManager templates={taskTemplates} />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-serif text-lg text-text mb-1">Document Templates</h2>
+        <p className="text-sm text-text-muted mb-4">
+          Letters and emails staff can review and send to applicants at a given stage, such as an interview invitation.
+          Use variables like {"{{preferredName}}"} to personalise them.
+        </p>
+        <DocumentTemplateManager
+          templates={documentTemplates.map((t) => ({
+            id: t.id,
+            stageKey: t.stageKey,
+            name: t.name,
+            subject: t.subject,
+            bodyMarkdown: t.bodyMarkdown,
+            isActive: t.isActive,
+            sortOrder: t.sortOrder,
+            updatedAt: t.updatedAt.toISOString(),
+            updatedByName: t.updatedBy ? `${t.updatedBy.firstName} ${t.updatedBy.lastName}` : null,
+          }))}
+        />
       </section>
 
       <section className="mt-10">

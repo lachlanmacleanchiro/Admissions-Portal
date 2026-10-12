@@ -24,18 +24,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ st
     select: { id: true },
   });
 
-  // Log the action before deleting so we have a record it happened, unattached to the (soon-to-be-gone) application.
-  const context = student.deletionRequestedAt
-    ? "following their deletion request"
-    : "initiated by staff (no student request)";
-  await logAudit({
-    objectType: "User",
-    objectId: studentUserId,
-    action: "DELETE",
-    actionDetail: `Deleted account for ${student.firstName} ${student.lastName} (${student.email}) ${context}`,
-    userId: session!.user.id,
-  });
-
   const documentKeys: string[] = [];
 
   if (application) {
@@ -47,6 +35,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ st
 
     await prisma.$transaction([
       prisma.message.deleteMany({ where: { thread: { applicationId: application.id } } }),
+      prisma.mailMessage.deleteMany({ where: { thread: { applicationId: application.id } } }),
+      prisma.mailThread.deleteMany({ where: { applicationId: application.id } }),
+      prisma.documentSend.deleteMany({ where: { applicationId: application.id } }),
+      prisma.prerequisiteCourse.deleteMany({ where: { applicationId: application.id } }),
       prisma.document.deleteMany({ where: { applicationId: application.id } }),
       prisma.offerCondition.deleteMany({ where: { offer: { applicationId: application.id } } }),
       prisma.offer.deleteMany({ where: { applicationId: application.id } }),
@@ -69,6 +61,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ st
 
   await prisma.auditLog.updateMany({ where: { userId: studentUserId }, data: { userId: null } });
   await prisma.user.delete({ where: { id: studentUserId } });
+
+  // Logged only after the deletion succeeds, unattached to the (now-gone) application.
+  const context = student.deletionRequestedAt
+    ? "following their deletion request"
+    : "initiated by staff (no student request)";
+  await logAudit({
+    objectType: "User",
+    objectId: studentUserId,
+    action: "DELETE",
+    actionDetail: `Deleted account for ${student.firstName} ${student.lastName} (${student.email}) ${context}`,
+    userId: session!.user.id,
+  });
 
   const storage = getStorageProvider();
   await Promise.allSettled(documentKeys.map((key) => storage.delete(key)));

@@ -267,6 +267,47 @@ async function main() {
     console.log(`  ✓ Student ${s.firstName} ${s.lastName} (${s.stage})`);
   }
 
+  // ── Document Templates ───────────────────────────────────────────────
+  const existingInterviewTemplate = await prisma.documentTemplate.findFirst({
+    where: { name: "Online interview invitation" },
+  });
+  if (!existingInterviewTemplate) {
+    await prisma.documentTemplate.create({
+      data: {
+        stageKey: "INTERVIEW",
+        name: "Online interview invitation",
+        subject: "Your NZCC admissions interview",
+        createdById: globalAdmin.id,
+        updatedById: globalAdmin.id,
+        bodyMarkdown: `# Online interview
+
+Kia ora {{preferredName}}!
+
+I would like to invite you for an online admissions interview on the following time and date:
+
+**{{interviewDate}} at {{interviewTime}} via Zoom**
+
+Please click on the link below a few minutes before the scheduled start time so you can check your audio and video setup. Zoom is a straightforward, easy-to-use video platform, and you do not need an account to join the interview. Should you have any technical issues or problems, please let us know with plenty of notice.
+
+{{zoomLink}}
+
+This is a professional interview and is heavily weighted in admissions decision making. Please dress accordingly, set yourself up in a well-lit area at a desk, and be prepared to start on time, ensuring your audio and video settings are in working order.
+
+Details about the admissions essay and admissions timeline will be provided at the end of the interview, and there will also be time for any questions you may have.
+
+Before the interview, we do recommend watching some short videos that explore chiropractic philosophy, just to freshen your understanding before the interview. Just click on the link below and scroll down to *Explore our Philosophy*.
+
+https://chiropractic.ac.nz/study-with-us/discover-chiropractic/
+
+I look forward to seeing you soon.
+
+{{staffName}}
+NZCC Admissions`,
+      },
+    });
+  }
+  console.log("✓ Document templates");
+
   console.log("\n✅ Seed complete!");
   console.log("\nLogin credentials:");
   console.log("  Global Admin: admin@nzcc.ac.nz / Admin1234!");

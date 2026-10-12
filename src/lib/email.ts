@@ -34,6 +34,9 @@ function render(template: string, variables: Record<string, string>) {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] ?? match);
 }
 
+const DEFAULT_FOOTER_NOTE =
+  "This is an automated message from the NZCC Applicant Portal. Please do not reply directly to this email.";
+
 let cachedLogoDataUri: string | null = null;
 
 function getLogoDataUri(): string {
@@ -48,7 +51,7 @@ function getLogoDataUri(): string {
   return cachedLogoDataUri;
 }
 
-function wrapInBrandedLayout(bodyHtml: string): string {
+function wrapInBrandedLayout(bodyHtml: string, footerNote = DEFAULT_FOOTER_NOTE): string {
   const logoUrl = getLogoDataUri();
 
   return `<!DOCTYPE html>
@@ -81,7 +84,7 @@ function wrapInBrandedLayout(bodyHtml: string): string {
                 <p style="margin:0 0 6px 0; font-size:13px; font-weight:600; color:#054B37;">New Zealand College of Chiropractic</p>
                 <p style="margin:0; font-size:12px; color:#888888; line-height:1.5;">
                   Te Kāreti Kaikorohiti o Aotearoa<br />
-                  This is an automated message from the NZCC Applicant Portal. Please do not reply directly to this email.
+                  ${footerNote}
                 </p>
               </td>
             </tr>
@@ -246,15 +249,30 @@ export async function sendTemplatedEmail(
   variables: Record<string, string>
 ) {
   const template = await getTemplate(key);
-  const subject = render(template.subject, variables);
-  const bodyHtml = render(template.bodyHtml, variables);
-  const html = wrapInBrandedLayout(bodyHtml);
+  await sendEmail({
+    to,
+    subject: render(template.subject, variables),
+    bodyHtml: render(template.bodyHtml, variables),
+  });
+}
 
+/** Sends a one-off email (already-rendered body HTML) inside the branded NZCC layout. */
+export async function sendEmail({
+  to,
+  subject,
+  bodyHtml,
+  footerNote,
+}: {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  footerNote?: string;
+}) {
   const { error } = await getClient().emails.send({
     from: getFromAddress(),
     to,
     subject,
-    html,
+    html: wrapInBrandedLayout(bodyHtml, footerNote),
   });
 
   if (error) {

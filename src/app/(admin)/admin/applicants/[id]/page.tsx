@@ -18,6 +18,8 @@ import { EssayReviewPanel } from "./EssayReviewPanel";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { FlagEditor } from "./FlagEditor";
 import { DeleteAccountPanel } from "./DeleteAccountPanel";
+import { StageDocumentsPanel } from "./StageDocumentsPanel";
+import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
 import Link from "next/link";
 import type { ApplicationStageKey } from "@/generated/prisma/client";
 
@@ -67,6 +69,20 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   });
 
   if (!app) notFound();
+
+  const [stageDocumentTemplates, documentSends, autoValues] = await Promise.all([
+    prisma.documentTemplate.findMany({
+      where: { stageKey: app.currentStage, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, subject: true, bodyMarkdown: true },
+    }),
+    prisma.documentSend.findMany({
+      where: { applicationId: id },
+      orderBy: { sentAt: "desc" },
+      include: { sentBy: { select: { firstName: true, lastName: true } } },
+    }),
+    buildAutoVariableValues(id, session.user),
+  ]);
 
   const canAdvance = hasPermission(session, "ADVANCE_APPLICATION_STAGE");
   const canAssignTasks = hasPermission(session, "ASSIGN_TASKS");
@@ -200,6 +216,25 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
 
       {/* Detail grid */}
       <div className="grid grid-cols-2 gap-5">
+        {/* Stage documents (staff review + send; never automatic) */}
+        {stageDocumentTemplates.length > 0 && (
+          <StageDocumentsPanel
+            applicationId={id}
+            stageLabel={STAGE_STATUS_LABELS[app.currentStage]}
+            studentEmail={app.student.email}
+            templates={stageDocumentTemplates}
+            sends={documentSends.map((s) => ({
+              id: s.id,
+              templateId: s.templateId,
+              subject: s.subject,
+              sentAt: s.sentAt.toISOString(),
+              sentByName: `${s.sentBy.firstName} ${s.sentBy.lastName}`,
+            }))}
+            autoValues={autoValues ?? {}}
+            canSend={canSendMessages}
+          />
+        )}
+
         {/* Notes */}
         <div className="col-span-2">
           <NotesPanel

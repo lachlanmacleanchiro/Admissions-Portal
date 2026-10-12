@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { NextRequest } from "next/server";
 import path from "path";
 import fs from "fs/promises";
@@ -11,6 +12,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ key
 
   const { key } = await params;
   const filename = key.join("/");
+
+  // Students may only open files attached to their own application.
+  if (session.user.role === "STUDENT") {
+    const document = await prisma.document.findFirst({
+      where: { storageKey: filename, application: { studentId: session.user.id } },
+      select: { id: true },
+    });
+    if (!document) return new Response("Not found", { status: 404 });
+  }
 
   // Security: prevent path traversal
   const uploadDir = path.join(process.cwd(), "uploads");
