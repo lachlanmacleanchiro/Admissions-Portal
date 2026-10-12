@@ -5,7 +5,6 @@ import { requirePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { DocumentVerifyButtons } from "./DocumentVerifyButtons";
 import { DocumentDeleteButton } from "./DocumentDeleteButton";
-import Link from "next/link";
 
 export default async function ApplicantDocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,12 +27,7 @@ export default async function ApplicantDocumentsPage({ params }: { params: Promi
   const canDelete = hasPermission(session, "DELETE_DOCUMENTS");
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
-      <Link href={`/admin/applicants/${id}`} className="text-xs transition-colors" style={{ color: "#aaa" }}>
-        ← {app.student.firstName} {app.student.lastName}
-      </Link>
-      <h1 className="font-serif text-2xl text-text mt-3 mb-6">Documents</h1>
-
+    <div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         {app.documents.length === 0 ? (
           <div className="px-5 py-16 text-center text-sm" style={{ color: "#aaa" }}>No documents uploaded.</div>

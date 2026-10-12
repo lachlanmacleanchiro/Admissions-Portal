@@ -3,9 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
-import { STAGE_STATUS_LABELS } from "@/lib/stages";
 import { CommitteeDecisionPanel } from "./CommitteeDecisionPanel";
-import Link from "next/link";
 
 export default async function ConsiderationSummaryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,17 +36,7 @@ export default async function ConsiderationSummaryPage({ params }: { params: Pro
   );
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
-      <Link href={`/admin/applicants/${id}`} className="text-xs font-medium transition-colors hover:underline" style={{ color: "#114E3B" }}>
-        ← Back to Applicant
-      </Link>
-
-      <div className="flex items-center gap-3 mt-4 mb-1">
-        <h1 className="font-serif text-3xl text-text">{app.student.firstName} {app.student.lastName}</h1>
-        <Badge variant="red">{STAGE_STATUS_LABELS[app.currentStage]}</Badge>
-      </div>
-      <p className="text-sm mb-6" style={{ color: "#888" }}>Committee Consideration Summary</p>
-
+    <div>
       {/* Application Details */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-5">
         <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>

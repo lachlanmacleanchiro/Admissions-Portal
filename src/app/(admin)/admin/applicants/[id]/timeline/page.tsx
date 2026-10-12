@@ -90,12 +90,7 @@ export default async function ApplicantTimelinePage({
   }
 
   return (
-    <div className="px-8 py-7 max-w-4xl">
-      <Link href={`/admin/applicants/${id}`} className="text-xs font-medium transition-colors hover:underline" style={{ color: "#114E3B" }}>
-        ← {app.student.firstName} {app.student.lastName}
-      </Link>
-      <h1 className="font-serif text-2xl text-text mt-3 mb-5">Timeline</h1>
-
+    <div>
       {/* Controls */}
       <form method="get" action={baseUrl} className="flex gap-2 mb-6 flex-wrap items-center">
         <input

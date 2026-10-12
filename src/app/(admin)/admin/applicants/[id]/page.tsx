@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { STAGE_STATUS_LABELS, STAGE_DISPLAY_STEPS, STAGE_ORDER, stageDisplayIndex } from "@/lib/stages";
-import { StageAdvancer } from "./StageAdvancer";
-import { SendReminderButton } from "./SendReminderButton";
 import { EditApplicantForm } from "./EditApplicantForm";
 import { MessagesChatWidget } from "./MessagesChatWidget";
 import { MailThreadsPanel } from "@/components/shared/MailThreadsPanel";
@@ -16,25 +14,10 @@ import { NotesPanel } from "./NotesPanel";
 import { InterviewReviewPanel } from "./InterviewReviewPanel";
 import { EssayReviewPanel } from "./EssayReviewPanel";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
-import { FlagEditor } from "./FlagEditor";
 import { DeleteAccountPanel } from "./DeleteAccountPanel";
 import { StageDocumentsPanel } from "./StageDocumentsPanel";
 import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
 import Link from "next/link";
-import type { ApplicationStageKey } from "@/generated/prisma/client";
-
-const STAGE_VARIANTS: Record<ApplicationStageKey, "muted" | "blue" | "gold" | "red" | "green" | "olive" | "purple"> = {
-  NEW_SUBMITTED: "muted",
-  INTAKE_REVIEW: "blue",
-  ACADEMIC_CHECK: "gold",
-  INTERVIEW: "blue",
-  ESSAY: "blue",
-  COMMITTEE: "red",
-  OFFER_CONDITIONAL: "gold",
-  OFFER_UNCONDITIONAL: "gold",
-  ACCEPTED: "green",
-  ENROLLED: "olive",
-};
 
 export default async function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -89,7 +72,6 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   const canSendMessages = hasPermission(session, "SEND_MESSAGES");
   const canViewDocs = hasPermission(session, "VIEW_DOCUMENTS");
   const canVerifyDocs = hasPermission(session, "VERIFY_DOCUMENTS");
-  const canRemindTasks = hasPermission(session, "REMIND_TASK");
   const canEditProfile = hasPermission(session, "EDIT_APPLICANT_PROFILE");
   const canWithdraw = hasPermission(session, "WITHDRAW_APPLICATION");
 
@@ -99,69 +81,7 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   const showEssay = rawStageIndex >= STAGE_ORDER.indexOf("ESSAY");
 
   return (
-    <div className="px-8 py-7 max-w-4xl">
-      {/* Breadcrumb */}
-      <Link href="/admin/applicants" className="text-xs font-medium transition-colors hover:underline" style={{ color: "#114E3B" }}>
-        ← All Applicants
-      </Link>
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="font-serif text-3xl text-text">
-              {app.student.firstName} {app.student.lastName}
-            </h1>
-            <Badge variant={STAGE_VARIANTS[app.currentStage]}>
-              {STAGE_STATUS_LABELS[app.currentStage]}
-            </Badge>
-            <FlagEditor
-              applicationId={id}
-              flagNote={app.flagNote}
-              flagColor={app.flagColor}
-              canEdit={canEditProfile}
-            />
-          </div>
-          <div className="flex items-center gap-2 text-xs" style={{ color: "#666" }}>
-            <span className="font-mono">{app.applicantNumber}</span>
-            <span>·</span>
-            <span>{app.category === "DOMESTIC" ? "Domestic" : "International"}</span>
-            <span>·</span>
-            <span>Year {app.yearLevel === "YEAR_1" ? "1" : "2"}</span>
-            <span>·</span>
-            <span>{app.intakeYear.label}</span>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          {canAdvance && (
-            <StageAdvancer
-              applicationId={app.id}
-              currentStage={app.currentStage}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Sub-page nav */}
-      <div className="flex items-center gap-2 mb-6">
-        {[
-          { href: `/admin/applicants/${id}/tasks`, label: "Tasks" },
-          ...(canViewDocs ? [{ href: `/admin/applicants/${id}/documents`, label: "Documents" }] : []),
-          { href: `/admin/applicants/${id}/timeline`, label: "Audit Log" },
-          { href: `/admin/applicants/${id}/consideration`, label: "Consideration Summary" },
-        ].map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-white shadow-sm"
-            style={{ color: "#555" }}
-          >
-            {label}
-          </Link>
-        ))}
-        {canRemindTasks && <SendReminderButton applicationId={app.id} />}
-      </div>
-
+    <div>
       {/* Stage progress bar */}
       <div className="mb-6 bg-white rounded-2xl shadow-sm px-5 py-4">
         <div className="flex items-center justify-between mb-3">

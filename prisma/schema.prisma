@@ -339,6 +339,11 @@ model EmailTemplate {
 model AppSettings {
   id                        String   @id @default("singleton")
   emailNotificationsEnabled Boolean  @default(false)
+  // Outbound email (Resend). When unset, the RESEND_API_KEY / EMAIL_FROM_* env vars are used.
+  emailFromAddress          String?
+  emailFromName             String?
+  resendApiKeyEncrypted     String?
+  resendApiKeyLast4         String?
   updatedAt                 DateTime @updatedAt
 }
 

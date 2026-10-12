@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Applicant Portal Changelog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap">
+<style>
+  /* Layout: a single reading column, release-notes style — dated header, summary, then grouped entries with status chips. */
+  :root {
+    --bg: #F2F2F0;
+    --surface: #FFFFFF;
+    --surface-muted: #F8F8F6;
+    --text: #222826;
+    --text-muted: #5E6662;
+    --rule: rgba(17, 78, 59, 0.12);
+    --brand: #114E3B;
+    --brand-soft: rgba(17, 78, 59, 0.08);
+    --gold: #9A7424;
+    --gold-soft: rgba(199, 154, 59, 0.16);
+    --red: #B03A2E;
+    --red-soft: rgba(176, 58, 46, 0.09);
+    --font-display: "Montserrat", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Open Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101614; --surface: #18201D; --surface-muted: #1D2623; --text: #E7ECE9; --text-muted: #A3AEA9;
+      --rule: rgba(160, 205, 185, 0.14); --brand: #7CC4A6; --brand-soft: rgba(124, 196, 166, 0.12);
+      --gold: #E0BC6C; --gold-soft: rgba(224, 188, 108, 0.14); --red: #F08A7E; --red-soft: rgba(240, 138, 126, 0.12);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101614; --surface: #18201D; --surface-muted: #1D2623; --text: #E7ECE9; --text-muted: #A3AEA9;
+    --rule: rgba(160, 205, 185, 0.14); --brand: #7CC4A6; --brand-soft: rgba(124, 196, 166, 0.12);
+    --gold: #E0BC6C; --gold-soft: rgba(224, 188, 108, 0.14); --red: #F08A7E; --red-soft: rgba(240, 138, 126, 0.12);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.65;
+    padding-inline: 20px; padding-block: 40px 64px;
+  }
+  .page { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; color: var(--text); }
+  h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.15; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; font-weight: 700; }
+  h3 { font-size: 16.5px; font-weight: 600; line-height: 1.35; }
+  p { margin: 0; }
+  ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+  .eyebrow {
+    font-family: var(--font-display); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand);
+  }
+
+  header { display: flex; flex-direction: column; gap: 12px; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
+  header .lede { color: var(--text-muted); font-size: 17px; max-width: 62ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .highlight { background: var(--surface); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .highlight .label { font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .highlight p { font-size: 15px; }
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  .entry { background: var(--surface); border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .entry p, .entry li { color: var(--text-muted); font-size: 15.5px; }
+  .entry li strong, .entry p strong { color: var(--text); font-weight: 600; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    font-family: var(--font-display); font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.live { color: var(--brand); background: var(--brand-soft); }
+  .chip.ready { color: var(--gold); background: var(--gold-soft); }
+  .chip.issue { color: var(--red); background: var(--red-soft); }
+
+  .steps { list-style: none; padding: 0; counter-reset: step; gap: 10px; }
+  .steps li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+  .steps li::before {
+    content: counter(step); font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--brand-soft); color: var(--brand); margin-top: 1px;
+  }
+
+  .callout { border-radius: 12px; padding: 18px 22px; display: flex; flex-direction: column; gap: 8px; }
+  .callout.action { background: var(--brand-soft); }
+  .callout.warn { background: var(--red-soft); }
+  .callout p, .callout li { font-size: 15.5px; }
+
+  code, .var {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.88em;
+    background: var(--surface-muted); color: var(--text); padding: 1px 6px; border-radius: 4px;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 14px; color: var(--text-muted); }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 20px; font-size: 14px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <span class="eyebrow">NZCC Applicant Portal · Release notes</span>
+    <h1>What changed on 12 October 2026</h1>
+    <p class="lede">
+      Staff can now send interview invitations and other letters from reusable templates, with every email
+      checked by a person before it goes out. Settings and applicant records are easier to find your way
+      around, and two privacy and data issues have been fixed.
+    </p>
+    <div class="meta">
+      <span>For: <strong>Admissions leadership and staff</strong></span>
+      <span>Prepared: <strong>12 Oct 2026</strong></span>
+    </div>
+    <div class="legend" aria-label="Status key">
+      <span class="chip live">Live</span> Released and available now
+      <span class="chip ready">Ready</span> Finished and tested, waiting for the next release
+    </div>
+  </header>
+
+  <div class="highlights">
+    <div class="highlight">
+      <span class="label">New</span>
+      <p><strong>Document templates</strong>, such as interview invitations, reviewed and sent by staff.</p>
+    </div>
+    <div class="highlight">
+      <span class="label">New</span>
+      <p><strong>Your own email account</strong>: connect NZCC's email-sending account in Settings.</p>
+    </div>
+    <div class="highlight">
+      <span class="label">Fixed</span>
+      <p><strong>Student files</strong> can now only be opened by the student who uploaded them, and by staff.</p>
+    </div>
+  </div>
+
+  <section aria-labelledby="new-features">
+    <div class="section-head">
+      <h2 id="new-features">New features</h2>
+    </div>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Document templates for each admissions stage</h3>
+        <span class="chip live">Live</span>
+      </div>
+      <p>
+        Admins write letters and emails once and reuse them. Each template belongs to a stage, so the
+        interview invitation appears when an applicant reaches the Interview stage.
+      </p>
+      <ol class="steps">
+        <li><span><strong>Write the template</strong> in Settings. A simple editor offers bold, headings, lists and links, plus a live preview.</span></li>
+        <li><span><strong>Personalise it with placeholders.</strong> <span class="var">{{preferredName}}</span>, the applicant number and the intake year fill in automatically. Anything else, like <span class="var">{{zoomLink}}</span>, becomes a box staff complete before sending.</span></li>
+        <li><span><strong>Review and send.</strong> On the applicant's page, staff open the email, fill in the blanks, adjust the wording if needed and press Send.</span></li>
+      </ol>
+      <ul>
+        <li><strong>Nothing sends automatically.</strong> Moving an applicant to a new stage never emails them a document. A staff member always reviews and sends it.</li>
+        <li><strong>Every send is on record:</strong> who sent it, when, and the exact wording. It also appears on the applicant's timeline and in the audit log.</li>
+        <li>The <strong>online interview invitation</strong> letter has been set up as the first template.</li>
+      </ul>
+    </article>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Email settings: use NZCC's own sending account</h3>
+        <span class="chip ready">Ready</span>
+      </div>
+      <p>
+        A new <strong>Email</strong> page in Settings lets an admin enter the sender address, the sender
+        name applicants see, and the access key for NZCC's own Resend account (Resend is the service that
+        delivers the portal's emails). The portal then stops depending on the developer's account.
+      </p>
+      <ul>
+        <li>The access key is stored securely and can't be viewed again after saving. Only its last four characters are shown.</li>
+        <li>A <strong>Send test email</strong> button confirms everything works before applicants rely on it.</li>
+        <li>The on/off switch for automatic notification emails has moved onto this page.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section aria-labelledby="improvements">
+    <div class="section-head">
+      <h2 id="improvements">Improvements</h2>
+    </div>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Settings split into tabs</h3>
+        <span class="chip ready">Ready</span>
+      </div>
+      <p>
+        Settings was one long page. It now has four tabs: <strong>General</strong> (intake years and
+        application errors), <strong>Stage Task Templates</strong>, <strong>Document Templates</strong>
+        and <strong>Email</strong>.
+      </p>
+    </article>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Applicant records are easier to move around</h3>
+        <span class="chip ready">Ready</span>
+      </div>
+      <ul>
+        <li><strong>Tabs instead of buttons:</strong> Overview, Tasks, Documents, Audit Log and Consideration Summary sit in one tab bar, like Settings.</li>
+        <li><strong>The header stays put.</strong> The applicant's name, stage, flag and Status button now look the same on every tab, so staff always know whose record they're in.</li>
+        <li><strong>Uses the full screen.</strong> Applicant pages now fill wide monitors instead of stopping halfway across.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section aria-labelledby="fixes">
+    <div class="section-head">
+      <h2 id="fixes">Fixes</h2>
+    </div>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Student documents are private to that student</h3>
+        <span class="chip live">Live</span>
+      </div>
+      <p>
+        Previously, a signed-in student who had another student's file link could open that file. Students
+        can now only open their own documents. Staff access is unchanged.
+      </p>
+    </article>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>Deleting a student account works reliably</h3>
+        <span class="chip live">Live</span>
+      </div>
+      <p>
+        Deleting an account failed for students who had used message threads or had Year 2 prerequisite
+        courses on file, but the audit log still recorded it as deleted. Deletion now completes, and the log
+        entry is written only once it has.
+      </p>
+    </article>
+  </section>
+
+  <section aria-labelledby="known-issues">
+    <div class="section-head">
+      <h2 id="known-issues">Known issue</h2>
+    </div>
+    <div class="callout warn">
+      <div class="entry-head">
+        <h3>Check the interview time before sending an invitation</h3>
+        <span class="chip issue">Open</span>
+      </div>
+      <p>
+        The interview panel only stores a date, not a time. For applicants with an interview date entered,
+        the invitation's time placeholder fills in an incorrect time (around midday). Until this is fixed,
+        check the time in the preview and type the correct time into the message before pressing Send.
+        A fix is planned as part of combining interview scheduling with sending the invitation.
+      </p>
+    </div>
+  </section>
+
+  <section aria-labelledby="actions">
+    <div class="section-head">
+      <h2 id="actions">What admins need to do</h2>
+    </div>
+    <div class="callout action">
+      <ul>
+        <li><strong>Connect NZCC's email account</strong> once the Email settings page is released: Settings → Email, then use <em>Send test email</em>.</li>
+        <li><strong>Add the interview invitation template</strong> in Settings → Document Templates on the live portal. The example letter was set up for testing and isn't on the live site yet.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="next">
+    <div class="section-head">
+      <h2 id="next">Proposed next steps</h2>
+    </div>
+    <article class="entry">
+      <p>A full review of the portal found these areas worth prioritising. Each one needs a decision before work starts.</p>
+      <ul>
+        <li><strong>One-step interview scheduling:</strong> set the date, time and Zoom link once, and the invitation fills itself in. Attendance and reschedules are recorded.</li>
+        <li><strong>Student portal polish:</strong> clearer "what to do next" guidance, a single message inbox, a document checklist and a simpler offer page.</li>
+        <li><strong>Privacy:</strong> notes staff type when moving an applicant to a new stage currently appear on the student's timeline.</li>
+        <li><strong>Accurate dashboard:</strong> some figures on the admin dashboard are placeholders, not real data.</li>
+        <li><strong>Sign-in protection:</strong> limit repeated login attempts, as flagged in the July security review.</li>
+      </ul>
+    </article>
+  </section>
+
+  <footer>
+    NZCC Applicant Portal · Changes made on 12 October 2026. Items marked Ready go live with the next release.
+  </footer>
+</div>
+</body>
+</html>

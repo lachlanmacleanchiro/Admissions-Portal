@@ -1,26 +1,41 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import type { EmailTemplateKey } from "@/generated/prisma/client";
+import { decryptSecret } from "@/lib/secrets";
 import fs from "fs";
 import path from "path";
 
-let client: Resend | null = null;
+/**
+ * Resolves the Resend API key and sender, preferring values saved in
+ * Settings → Email and falling back to the RESEND_API_KEY / EMAIL_FROM_*
+ * environment variables for anything not set there.
+ */
+export async function getEmailConfig() {
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: { emailFromAddress: true, emailFromName: true, resendApiKeyEncrypted: true },
+  });
 
-function getClient() {
-  if (!client) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not set");
-    }
-    client = new Resend(process.env.RESEND_API_KEY);
-  }
-  return client;
+  const savedKey = settings?.resendApiKeyEncrypted ? decryptSecret(settings.resendApiKeyEncrypted) : null;
+
+  return {
+    apiKey: savedKey ?? process.env.RESEND_API_KEY ?? null,
+    apiKeySource: savedKey ? ("settings" as const) : process.env.RESEND_API_KEY ? ("environment" as const) : null,
+    savedKeyUnreadable: !!settings?.resendApiKeyEncrypted && !savedKey,
+    fromAddress: settings?.emailFromAddress || process.env.EMAIL_FROM_ADDRESS || null,
+    fromName: settings?.emailFromName || process.env.EMAIL_FROM_NAME || null,
+  };
 }
 
-function getFromAddress() {
-  const address = process.env.EMAIL_FROM_ADDRESS;
-  const name = process.env.EMAIL_FROM_NAME;
-  if (!address) throw new Error("EMAIL_FROM_ADDRESS is not set");
-  return name ? `${name} <${address}>` : address;
+const clients = new Map<string, Resend>();
+
+function getClient(apiKey: string) {
+  let client = clients.get(apiKey);
+  if (!client) {
+    client = new Resend(apiKey);
+    clients.set(apiKey, client);
+  }
+  return client;
 }
 
 /** Builds an absolute link to a path on the canonical app URL, for use in emails. */
@@ -268,8 +283,12 @@ export async function sendEmail({
   bodyHtml: string;
   footerNote?: string;
 }) {
-  const { error } = await getClient().emails.send({
-    from: getFromAddress(),
+  const config = await getEmailConfig();
+  if (!config.apiKey) throw new Error("No Resend API key is configured (Settings → Email or RESEND_API_KEY)");
+  if (!config.fromAddress) throw new Error("No sender address is configured (Settings → Email or EMAIL_FROM_ADDRESS)");
+
+  const { error } = await getClient(config.apiKey).emails.send({
+    from: config.fromName ? `${config.fromName} <${config.fromAddress}>` : config.fromAddress,
     to,
     subject,
     html: wrapInBrandedLayout(bodyHtml, footerNote),

@@ -2,6 +2,7 @@
 # SERVICE_USER_POSTGRES / SERVICE_PASSWORD_POSTGRES are Coolify magic variables:
 # Coolify generates and stores them automatically on first deploy.
 # Variables marked ${VAR:?} must be set in Coolify's Environment Variables tab.
+# RESEND_API_KEY and EMAIL_FROM_* are optional fallbacks: they can be set in the app under Settings → Email.
 # For local development, use docker-compose.dev.yml (Postgres only).
 services:
   app:
@@ -17,8 +18,8 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?}
       AUTH_URL: ${AUTH_URL:?}
       AUTH_TRUST_HOST: "true"
-      RESEND_API_KEY: ${RESEND_API_KEY:?}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:?}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-New Zealand College of Chiropractic}
       STORAGE_PROVIDER: local
     volumes:

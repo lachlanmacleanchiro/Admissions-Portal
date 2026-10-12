@@ -7,7 +7,6 @@ import { AssignTaskToggle } from "./AssignTaskToggle";
 import { TaskReviewPanel } from "./TaskReviewPanel";
 import { TaskActions } from "./TaskActions";
 import { TaskOptionsMenu } from "./TaskOptionsMenu";
-import Link from "next/link";
 
 export default async function ApplicantTasksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,14 +44,7 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
   const canDelete = hasPermission(session, "DELETE_TASKS");
 
   return (
-    <div className="px-8 py-7 max-w-3xl">
-      <Link href={`/admin/applicants/${id}`} className="text-xs transition-colors" style={{ color: "#aaa" }}>
-        ← {app.student.firstName} {app.student.lastName}
-      </Link>
-      <h1 className="font-serif text-2xl text-text mt-3 mb-6">
-        Tasks — {app.student.firstName} {app.student.lastName}
-      </h1>
-
+    <div>
       {canAssign && (
         <AssignTaskToggle applicationId={id} staffId={session.user.id} />
       )}

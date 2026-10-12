@@ -3,7 +3,6 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
-import Link from "next/link";
 import { generateDemoAnnotations, PLACEHOLDER_ESSAY_TEXT } from "./aiDemoData";
 
 const TONE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -37,13 +36,9 @@ export default async function EssayAiReviewPage({ params }: { params: Promise<{ 
   const noteBySentence = new Map(notes.map((n) => [n.sentenceIndex, n]));
 
   return (
-    <div className="px-8 py-7 max-w-6xl">
-      <Link href={`/admin/applicants/${id}`} className="text-xs font-medium transition-colors hover:underline" style={{ color: "#114E3B" }}>
-        ← Back to Applicant
-      </Link>
-
-      <div className="flex items-center gap-3 mt-4 mb-1">
-        <h1 className="font-serif text-2xl text-text">{app.student.firstName} {app.student.lastName}'s Essay</h1>
+    <div>
+      <div className="flex items-center gap-3 mb-1">
+        <h2 className="font-serif text-xl text-text">Essay</h2>
         <Badge variant="gold">✨ AI-Assisted Review — Demo</Badge>
       </div>
       <p className="text-sm mb-2" style={{ color: "#888" }}>
