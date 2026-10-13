@@ -252,6 +252,8 @@ model User {
   totpSecret          String?
   totpEnabled         Boolean   @default(false)
   deletionRequestedAt DateTime?
+  // Staff only: their arrangement of applicant Overview widgets ([{ id, width }]).
+  applicantLayout     Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

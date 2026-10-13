@@ -5,8 +5,6 @@ import { requirePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { STAGE_STATUS_LABELS, STAGE_DISPLAY_STEPS, STAGE_ORDER, stageDisplayIndex } from "@/lib/stages";
 import { EditApplicantForm } from "./EditApplicantForm";
-import { MessagesChatWidget } from "./MessagesChatWidget";
-import { MailThreadsPanel } from "@/components/shared/MailThreadsPanel";
 import { TaskCompleteCheckbox } from "./TaskCompleteCheckbox";
 import { DocumentVerifyButtons } from "./documents/DocumentVerifyButtons";
 import { OfferPanel } from "./OfferPanel";
@@ -17,7 +15,8 @@ import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { DeleteAccountPanel } from "./DeleteAccountPanel";
 import { StageDocumentsPanel } from "./StageDocumentsPanel";
 import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
-import { getMessagingMode } from "@/lib/messaging";
+import { WidgetBoard, type BoardWidget } from "@/components/admin/WidgetBoard";
+import { normaliseLayout } from "@/lib/applicantWidgets";
 import Link from "next/link";
 
 export default async function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,9 +37,6 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
         include: { assignedTo: { select: { firstName: true, lastName: true } } },
       },
       documents: { orderBy: { uploadedAt: "desc" }, take: 5 },
-      messageThread: {
-        include: { messages: { orderBy: { sentAt: "asc" } } },
-      },
       timelineEvents: { orderBy: { occurredAt: "desc" }, take: 5 },
       offers: {
         orderBy: { issuedAt: "desc" },
@@ -81,25 +77,18 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   const canEditProfile = hasPermission(session, "EDIT_APPLICANT_PROFILE");
   const canWithdraw = hasPermission(session, "WITHDRAW_APPLICATION");
 
-  const messagingMode = await getMessagingMode();
-
-  // Staff viewing the conversation counts as reading it (drives the student's "Seen" receipts).
-  if (canSendMessages && messagingMode === "CHAT" && app.messageThread) {
-    await prisma.message.updateMany({
-      where: { threadId: app.messageThread.id, senderRole: "STUDENT", isRead: false },
-      data: { isRead: true, readAt: new Date() },
-    });
-  }
 
   const currentIndex = stageDisplayIndex(app.currentStage);
   const rawStageIndex = STAGE_ORDER.indexOf(app.currentStage);
   const showInterview = rawStageIndex >= STAGE_ORDER.indexOf("INTERVIEW");
   const showEssay = rawStageIndex >= STAGE_ORDER.indexOf("ESSAY");
 
-  return (
-    <div>
-      {/* Stage progress bar */}
-      <div className="mb-6 bg-white rounded-2xl shadow-sm px-5 py-4">
+
+  // Each Overview section is a widget the staff member can rearrange (Move Widgets).
+  // A widget is null when it doesn't apply to this applicant.
+  const widgets: BoardWidget[] = [
+    { id: "progress", node: (
+      <div className="bg-white rounded-2xl shadow-sm px-5 py-4">
         <div className="flex items-center justify-between mb-3">
           {STAGE_DISPLAY_STEPS.map((step, i) => {
             const isComplete = i < currentIndex;
@@ -149,11 +138,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
           })}
         </div>
       </div>
-
-      {/* Detail grid */}
-      <div className="grid grid-cols-2 gap-5">
-        {/* Stage documents (staff review + send; never automatic) */}
-        {stageDocumentTemplates.length > 0 && (
+    ) },
+    { id: "stage-documents", node: stageDocumentTemplates.length > 0 ? (
           <StageDocumentsPanel
             applicationId={id}
             stageLabel={STAGE_STATUS_LABELS[app.currentStage]}
@@ -169,19 +155,16 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             autoValues={autoValues ?? {}}
             canSend={canSendMessages}
           />
-        )}
-
-        {/* Notes */}
-        <div className="col-span-2">
+    ) : null },
+    { id: "notes", node: (
           <NotesPanel
             applicationId={id}
             notes={app.notes.map((n) => ({ ...n, createdAt: n.createdAt.toISOString(), updatedAt: n.updatedAt.toISOString() }))}
             canAdd={canEditProfile}
             currentUserId={session!.user.id}
           />
-        </div>
-
-        {/* Application Details */}
+    ) },
+    { id: "details", node: (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Application Details</p>
@@ -224,8 +207,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             ))}
           </dl>
         </div>
-
-        {/* Academic Background */}
+    ) },
+    { id: "academic", node: (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Academic Background</p>
@@ -244,9 +227,9 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             ))}
           </dl>
         </div>
-
-        {/* Disclosures */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden col-span-2">
+    ) },
+    { id: "disclosures", node: (
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Disclosures</p>
           </div>
@@ -266,9 +249,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             ))}
           </dl>
         </div>
-
-        {/* Prerequisite Courses (Year 2) */}
-        {app.yearLevel === "YEAR_2" && (
+    ) },
+    { id: "prerequisites", node: app.yearLevel === "YEAR_2" ? (
           <PrerequisitesPanel
             applicationId={id}
             courses={app.prerequisiteCourses}
@@ -276,19 +258,16 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             prerequisitesMet={app.prerequisitesMet}
             canEdit={canEditProfile}
           />
-        )}
-
-        {/* Personal Statement */}
-        {app.personalStatement && (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden col-span-2">
+    ) : null },
+    { id: "statement", node: app.personalStatement ? (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
               <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Personal Statement</p>
             </div>
             <p className="px-5 py-4 text-sm whitespace-pre-wrap" style={{ color: "#333" }}>{app.personalStatement}</p>
           </div>
-        )}
-
-        {/* Tasks */}
+    ) : null },
+    { id: "tasks", node: (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Tasks</p>
@@ -323,9 +302,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             ))
           )}
         </div>
-
-        {/* Documents */}
-        {canViewDocs && (
+    ) },
+    { id: "documents", node: canViewDocs ? (
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
               <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Documents</p>
@@ -358,9 +336,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
               ))
             )}
           </div>
-        )}
-
-        {/* Offer */}
+    ) : null },
+    { id: "offer", node: (
         <OfferPanel
           applicationId={id}
           offers={app.offers.map((o) => ({
@@ -372,9 +349,8 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
           depositStatus={app.depositStatus}
           depositMethod={app.depositMethod}
         />
-
-        {/* Interview Review */}
-        {showInterview && (
+    ) },
+    { id: "interview", node: showInterview ? (
           <InterviewReviewPanel
             applicationId={id}
             review={
@@ -384,47 +360,21 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             }
             canEdit={canAdvance}
           />
-        )}
-
-        {/* Essay Review */}
-        {showEssay && (
+    ) : null },
+    { id: "essay", node: showEssay ? (
           <EssayReviewPanel applicationId={id} review={app.essayReview} canEdit={canAdvance} />
-        )}
-
-      </div>
-
-      {/* Messages — only the style chosen in Settings → Communication is shown */}
-      {canSendMessages && messagingMode === "CHAT" && (
-        <div className="mt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "#555" }}>Conversation</p>
-          <MessagesChatWidget
-            applicationId={id}
-            studentFirstName={app.student.firstName}
-            thread={app.messageThread ?? null}
-          />
-        </div>
-      )}
-
-      {canSendMessages && messagingMode === "THREADS" && (
-        <div className="mt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: "#555" }}>Conversations</p>
-          <MailThreadsPanel
-            baseUrl={`/api/admin/applicants/${id}/mail-threads`}
-            viewerRole="STAFF"
-            composerLabel={`Message ${app.student.firstName}…`}
-          />
-        </div>
-      )}
-
-      {/* Account deletion */}
-      <div className="mt-6">
+    ) : null },
+    { id: "account", node: canWithdraw || app.student.deletionRequestedAt ? (
         <DeleteAccountPanel
           studentUserId={app.student.id}
           studentName={`${app.student.firstName} ${app.student.lastName}`}
           deletionRequestedAt={app.student.deletionRequestedAt ? app.student.deletionRequestedAt.toISOString() : null}
           canDelete={canWithdraw}
         />
-      </div>
-    </div>
-  );
+    ) : null },
+  ];
+
+  const staffUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { applicantLayout: true } });
+
+  return <WidgetBoard widgets={widgets} initialLayout={normaliseLayout(staffUser?.applicantLayout)} />;
 }

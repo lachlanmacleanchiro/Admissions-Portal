@@ -104,7 +104,7 @@ export function StageDocumentsPanel({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden col-span-2" style={{ borderLeft: "3px solid #C79A3B" }}>
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
         <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>
           Documents for {stageLabel}

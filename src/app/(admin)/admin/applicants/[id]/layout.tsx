@@ -8,6 +8,9 @@ import { ApplicantTabs } from "@/components/admin/ApplicantTabs";
 import { StageAdvancer } from "./StageAdvancer";
 import { SendReminderButton } from "./SendReminderButton";
 import { FlagEditor } from "./FlagEditor";
+import { getMessagingMode } from "@/lib/messaging";
+import { WidgetEditProvider } from "@/components/admin/WidgetEditContext";
+import { MoveWidgetsButton } from "@/components/admin/MoveWidgetsButton";
 import Link from "next/link";
 import type { ApplicationStageKey } from "@/generated/prisma/client";
 
@@ -57,8 +60,17 @@ export default async function ApplicantLayout({
   const canEditProfile = hasPermission(session, "EDIT_APPLICANT_PROFILE");
   const canRemindTasks = hasPermission(session, "REMIND_TASK");
   const canViewDocs = hasPermission(session, "VIEW_DOCUMENTS");
+  const canMessage = hasPermission(session, "SEND_MESSAGES");
+
+  // Unread messages from the student in the messaging style currently shown.
+  const unreadMessages = canMessage
+    ? (await getMessagingMode()) === "CHAT"
+      ? await prisma.message.count({ where: { thread: { applicationId: id }, senderRole: "STUDENT", isRead: false } })
+      : await prisma.mailMessage.count({ where: { thread: { applicationId: id }, senderRole: "STUDENT", isRead: false } })
+    : 0;
 
   return (
+    <WidgetEditProvider>
     <div className="px-8 py-7 w-full">
       <Link href="/admin/applicants" className="text-xs font-medium transition-colors hover:underline" style={{ color: "#114E3B" }}>
         ← All Applicants
@@ -93,10 +105,18 @@ export default async function ApplicantLayout({
       <ApplicantTabs
         applicationId={id}
         showDocuments={canViewDocs}
-        actions={canRemindTasks ? <SendReminderButton applicationId={app.id} /> : undefined}
+        showCommunications={canMessage}
+        unreadMessages={unreadMessages}
+        actions={
+          <>
+            <MoveWidgetsButton applicationId={app.id} />
+            {canRemindTasks && <SendReminderButton applicationId={app.id} />}
+          </>
+        }
       />
 
       {children}
     </div>
+    </WidgetEditProvider>
   );
 }
