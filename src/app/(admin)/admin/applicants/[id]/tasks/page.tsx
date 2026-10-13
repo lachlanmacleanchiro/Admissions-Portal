@@ -25,7 +25,7 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
             assignedBy: { select: { firstName: true, lastName: true } },
             assignedTo: { select: { id: true, firstName: true, lastName: true } },
             reviewedBy: { select: { firstName: true, lastName: true } },
-            documents: { select: { id: true, filename: true, storageKey: true, status: true } },
+            documents: { select: { id: true, filename: true, storageKey: true, status: true, uploadedAt: true }, orderBy: { uploadedAt: "desc" } },
           },
         },
       },
@@ -105,6 +105,39 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
                       staffOptions={staffOptions}
                       audience={task.audience}
                     />
+                  </div>
+                )}
+
+                {/* Uploaded files — the review panel lists them itself while a submission is awaiting review. */}
+                {task.documents.length > 0 && !(task.status === "SUBMITTED" && canReview) && (
+                  <div className="mb-3 rounded-lg px-3 py-2.5" style={{ backgroundColor: "#F8F8F6", border: "1px solid rgba(0,0,0,0.05)" }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: "#999" }}>
+                      {task.documents.length === 1 ? "Uploaded file" : `Uploaded files · ${task.documents.length}`}
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                      {task.documents.map((doc) => (
+                        <li key={doc.id} className="flex items-center gap-2 text-xs flex-wrap">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#999" }} aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <a
+                            href={`/api/files/${doc.storageKey}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium hover:underline truncate max-w-[60%]"
+                            style={{ color: "#114E3B" }}
+                          >
+                            {doc.filename}
+                          </a>
+                          <span style={{ color: "#aaa" }}>
+                            {new Date(doc.uploadedAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                          <Badge variant={doc.status === "VERIFIED" ? "green" : doc.status === "REJECTED" ? "red" : "muted"}>
+                            {doc.status === "VERIFIED" ? "Verified" : doc.status === "REJECTED" ? "Rejected" : "Pending review"}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
