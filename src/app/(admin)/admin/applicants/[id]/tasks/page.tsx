@@ -7,6 +7,7 @@ import { AssignTaskToggle } from "./AssignTaskToggle";
 import { TaskReviewPanel } from "./TaskReviewPanel";
 import { TaskActions } from "./TaskActions";
 import { TaskOptionsMenu } from "./TaskOptionsMenu";
+import { SubTabs } from "@/components/ui/SubTabs";
 import type { TaskAudience, TaskStatus } from "@/generated/prisma/client";
 
 type Tone = "neutral" | "info" | "warning" | "success" | "danger";
@@ -45,8 +46,16 @@ function formatDate(date: Date) {
   return new Date(date).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default async function ApplicantTasksPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ApplicantTasksPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
+}) {
   const { id } = await params;
+  const { view } = await searchParams;
+  const showArchived = view === "archived";
   const session = await auth();
   if (!session?.user || session.user.role !== "STAFF") redirect("/login");
   requirePermission(session, "VIEW_APPLICANTS");
@@ -77,18 +86,38 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
   const canDelete = hasPermission(session, "DELETE_TASKS");
   const now = Date.now();
 
+  // Active = still needs action (incl. submitted, awaiting review); Archived = approved / completed.
+  const activeTasks = app.tasks.filter((t) => t.status !== "APPROVED");
+  const archivedTasks = app.tasks.filter((t) => t.status === "APPROVED");
+  const tasks = showArchived ? archivedTasks : activeTasks;
+  const base = `/admin/applicants/${id}/tasks`;
+
   return (
     <div>
       {canAssign && (
         <AssignTaskToggle applicationId={id} staffId={session.user.id} staffOptions={staffOptions} />
       )}
 
+      <SubTabs
+        label="Task status"
+        tabs={[
+          { href: base, label: "Active", count: activeTasks.length, active: !showArchived },
+          { href: `${base}?view=archived`, label: "Archived", count: archivedTasks.length, active: showArchived },
+        ]}
+      />
+
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        {app.tasks.length === 0 ? (
-          <div className="px-6 py-16 text-center text-sm" style={{ color: "#999" }}>No tasks yet.</div>
+        {tasks.length === 0 ? (
+          <div className="px-6 py-16 text-center text-sm" style={{ color: "#999" }}>
+            {showArchived
+              ? "No completed tasks yet. Tasks move here once they're approved or marked complete."
+              : app.tasks.length === 0
+              ? "No tasks yet."
+              : "Nothing needs action. Completed tasks are under Archived."}
+          </div>
         ) : (
           <ul>
-            {app.tasks.map((task, i) => {
+            {tasks.map((task, i) => {
               const isStudentTask = task.audience === "STUDENT";
               const isOpen = task.status !== "APPROVED";
               const isOverdue = isOpen && task.dueDate && new Date(task.dueDate).getTime() < now;
@@ -99,7 +128,7 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
                 <li
                   key={task.id}
                   className="px-6 py-5"
-                  style={{ borderBottom: i < app.tasks.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none" }}
+                  style={{ borderBottom: i < tasks.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none" }}
                 >
                   <div className="flex items-start justify-between gap-6 flex-wrap">
                     {/* Title, type, status, details */}
