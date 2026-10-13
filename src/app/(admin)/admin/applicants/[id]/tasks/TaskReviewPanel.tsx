@@ -1,105 +1,102 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
-interface Document {
-  id: string;
-  filename: string;
-  storageKey: string;
-  status: string;
-}
-
 interface TaskReviewPanelProps {
   taskId: string;
   applicationId: string;
   studentNote: string | null;
-  documents: Document[];
+  submittedAt: string | Date | null;
   acknowledgedAt: string | Date | null;
 }
 
-export function TaskReviewPanel({ taskId, applicationId, studentNote, documents, acknowledgedAt }: TaskReviewPanelProps) {
+function formatDate(date: string | Date) {
+  return new Date(date).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Review controls for a submitted student task, laid out as a section of the task row. */
+export function TaskReviewPanel({ taskId, applicationId, studentNote, submittedAt, acknowledgedAt }: TaskReviewPanelProps) {
   const router = useRouter();
   const [reviewNote, setReviewNote] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [pending, setPending] = useState<"approve" | "reject" | "acknowledge" | null>(null);
+  const [error, setError] = useState("");
 
   async function handleAction(action: "approve" | "reject" | "acknowledge") {
     if (action === "reject" && !reviewNote.trim()) {
-      alert("Please provide a reason for rejection.");
+      setError("Add a note telling the student what to change before requesting changes.");
       return;
     }
-    setIsLoading(true);
-    await fetch(`/api/admin/applicants/${applicationId}/tasks/${taskId}`, {
+    setPending(action);
+    setError("");
+    const res = await fetch(`/api/admin/applicants/${applicationId}/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, reviewNote }),
-    });
-    setIsLoading(false);
+    }).catch(() => null);
+    setPending(null);
+    if (!res || !res.ok) {
+      setError("That didn't save. Please try again.");
+      return;
+    }
     router.refresh();
   }
 
   return (
-    <div className="mt-3 rounded-lg p-4" style={{ backgroundColor: "rgba(199,154,59,0.06)", borderLeft: "3px solid #C79A3B" }}>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-text">Review Submission</p>
-        {!acknowledgedAt && (
+    <div className="mt-4 pt-4 flex flex-col gap-3" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm font-semibold" style={{ color: "#222" }}>
+          Review submission
+          {submittedAt && (
+            <span className="ml-2 text-xs font-normal" style={{ color: "#999" }}>Submitted {formatDate(submittedAt)}</span>
+          )}
+        </p>
+        {acknowledgedAt ? (
+          <span className="text-xs" style={{ color: "#999" }}>Seen {formatDate(acknowledgedAt)}</span>
+        ) : (
           <button
+            type="button"
             onClick={() => handleAction("acknowledge")}
-            disabled={isLoading}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
-            style={{ backgroundColor: "rgba(199,154,59,0.15)", color: "#C79A3B" }}
+            disabled={pending !== null}
+            className="text-xs font-semibold hover:underline disabled:opacity-50"
+            style={{ color: "#114E3B" }}
           >
             Mark as seen
           </button>
         )}
-        {acknowledgedAt && (
-          <span className="text-[11px] font-medium" style={{ color: "#aaa" }}>
-            Seen {new Date(acknowledgedAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}
-          </span>
-        )}
       </div>
 
       {studentNote && (
-        <div className="mb-3">
-          <p className="text-xs font-medium text-text-muted mb-1">Student note:</p>
-          <p className="text-xs text-text bg-white rounded-lg px-3 py-2" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>{studentNote}</p>
+        <div>
+          <p className="text-xs font-medium mb-0.5" style={{ color: "#888" }}>Note from the student</p>
+          <p className="text-sm whitespace-pre-wrap" style={{ color: "#333" }}>{studentNote}</p>
         </div>
       )}
 
-      {documents.length > 0 && (
-        <div className="mb-3">
-          <p className="text-xs font-medium text-text-muted mb-1">Submitted documents:</p>
-          <ul className="flex flex-col gap-1">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <a href={`/api/files/${doc.storageKey}`} className="text-xs font-semibold hover:underline" style={{ color: "#114E3B" }} target="_blank" rel="noreferrer">
-                  {doc.filename} ↗
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mb-3">
-        <label className="block text-xs font-semibold text-text mb-1">Review note (required for rejection)</label>
+      <div>
+        <label htmlFor={`review-note-${taskId}`} className="block text-xs font-medium mb-1" style={{ color: "#888" }}>
+          Note to the student <span style={{ color: "#aaa" }}>(required when requesting changes)</span>
+        </label>
         <textarea
+          id={`review-note-${taskId}`}
           value={reviewNote}
-          onChange={(e) => setReviewNote(e.target.value)}
+          onChange={(e) => { setReviewNote(e.target.value); setError(""); }}
           rows={2}
-          className="w-full px-3 py-2 text-xs focus:outline-none text-text placeholder:text-text-light resize-none rounded-lg"
-          style={{ backgroundColor: "#F8F8F6", border: "1.5px solid rgba(0,0,0,0.1)" }}
-          placeholder="Add a note for the student…"
+          className="w-full px-3 py-2 text-sm focus:outline-none text-text placeholder:text-text-light resize-y rounded-lg"
+          style={{ backgroundColor: "#fff", border: "1px solid rgba(0,0,0,0.15)" }}
+          placeholder="e.g. Please upload a certified copy"
         />
       </div>
 
+      {error && <p role="alert" className="text-xs" style={{ color: "#c0392b" }}>{error}</p>}
+
       <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={() => handleAction("reject")} isLoading={isLoading}>
-          Reject
-        </Button>
-        <Button size="sm" onClick={() => handleAction("approve")} isLoading={isLoading}>
+        <Button size="sm" onClick={() => handleAction("approve")} isLoading={pending === "approve"} disabled={pending !== null}>
           Approve
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => handleAction("reject")} isLoading={pending === "reject"} disabled={pending !== null}>
+          Request changes
         </Button>
       </div>
     </div>
