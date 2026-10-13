@@ -10,6 +10,13 @@ import Link from "next/link";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Where a followed student task is up to, from the staff member's point of view. */
+const FOLLOWING_STATUS: Record<string, { label: string; variant: "muted" | "blue" | "red" | "gold" }> = {
+  PENDING: { label: "Not started", variant: "muted" },
+  IN_PROGRESS: { label: "In progress", variant: "blue" },
+  REJECTED: { label: "Changes requested", variant: "red" },
+};
+
 export default async function AdminTasksPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "STAFF") redirect("/login");
@@ -18,35 +25,43 @@ export default async function AdminTasksPage() {
   const [items, staffOptions] = await Promise.all([getMyTasks(session.user.id), getAssignableStaff()]);
 
   const now = Date.now();
-  const mine = items.filter((t) => t.needsMyAction);
-  const overdue = mine.filter((t) => t.dueDate && t.dueDate.getTime() < now);
-  const thisWeek = mine.filter((t) => t.dueDate && t.dueDate.getTime() >= now && t.dueDate.getTime() - now <= WEEK_MS);
-  const later = mine.filter((t) => !t.dueDate || t.dueDate.getTime() - now > WEEK_MS);
-  const waiting = items.filter((t) => !t.needsMyAction);
+  const isOverdue = (t: MyTaskItem) => !!t.dueDate && t.dueDate.getTime() < now;
+  const review = items.filter((t) => t.group === "review");
+  const work = items.filter((t) => t.group === "work");
+  const overdue = work.filter(isOverdue);
+  const thisWeek = work.filter((t) => t.dueDate && !isOverdue(t) && t.dueDate.getTime() - now <= WEEK_MS);
+  const later = work.filter((t) => !t.dueDate || t.dueDate.getTime() - now > WEEK_MS);
+  const following = items.filter((t) => t.group === "following");
+  const actionCount = review.length + work.length;
 
   return (
     <div className="px-8 py-7 w-full">
-      <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-        <div>
-          <h1 className="font-serif text-2xl text-text">My Tasks</h1>
-          <p className="text-sm text-text-muted mt-1">
-            {mine.length === 0
-              ? "Nothing needs your action right now."
-              : `${mine.length} task${mine.length === 1 ? "" : "s"} need${mine.length === 1 ? "s" : ""} your action. Includes applicant tasks assigned to you and your own to-dos.`}
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="font-serif text-2xl text-text">My Tasks</h1>
+        <p className="text-sm text-text-muted mt-1">
+          {actionCount === 0
+            ? "Nothing needs your action right now."
+            : `${actionCount} task${actionCount === 1 ? "" : "s"} need${actionCount === 1 ? "s" : ""} your action.`}
+          {following.length > 0 && ` You're following ${following.length} student task${following.length === 1 ? "" : "s"}.`}
+        </p>
       </div>
 
       <AddStaffTaskForm staffId={session.user.id} staffOptions={staffOptions} />
 
-      <TaskSection title="Overdue" color="#c0392b" items={overdue} tone="overdue" />
+      <TaskSection
+        title="Needs your review"
+        color="#8a6416"
+        items={review}
+        hint="Student tasks you follow that the student has submitted."
+      />
+      <TaskSection title="Overdue" color="#c0392b" items={overdue} />
       <TaskSection title="Due this week" color="#114E3B" items={thisWeek} />
       <TaskSection title="Later" color="#999" items={later} />
       <TaskSection
-        title="Waiting on the applicant"
-        color="#999"
-        items={waiting}
-        hint="Student tasks assigned to you. They'll move up when the applicant submits them for your review."
+        title="Following"
+        color="#555"
+        items={following}
+        hint="Student tasks you're keeping an eye on. They move to Needs your review when the student submits them."
       />
 
       {items.length === 0 && (
@@ -58,19 +73,7 @@ export default async function AdminTasksPage() {
   );
 }
 
-function TaskSection({
-  title,
-  color,
-  items,
-  tone,
-  hint,
-}: {
-  title: string;
-  color: string;
-  items: MyTaskItem[];
-  tone?: "overdue";
-  hint?: string;
-}) {
+function TaskSection({ title, color, items, hint }: { title: string; color: string; items: MyTaskItem[]; hint?: string }) {
   if (items.length === 0) return null;
   return (
     <section className="mt-8">
@@ -80,42 +83,44 @@ function TaskSection({
       {hint && <p className="text-xs mb-3" style={{ color: "#999" }}>{hint}</p>}
       <div className={`bg-white rounded-2xl shadow-sm overflow-hidden ${hint ? "" : "mt-2"}`}>
         {items.map((task, i) => (
-          <TaskRow key={task.key} task={task} isOverdue={tone === "overdue"} isLast={i === items.length - 1} />
+          <TaskRow key={task.key} task={task} isLast={i === items.length - 1} />
         ))}
       </div>
     </section>
   );
 }
 
-function TaskRow({ task, isOverdue, isLast }: { task: MyTaskItem; isOverdue: boolean; isLast: boolean }) {
-  const reviewHref = task.applicant ? `/admin/applicants/${task.applicant.id}/tasks` : null;
-  const canTick = task.kind === "todo" || task.audience === "STAFF";
-  const needsReview = task.kind === "applicant" && task.audience === "STUDENT" && task.status === "SUBMITTED";
+function TaskRow({ task, isLast }: { task: MyTaskItem; isLast: boolean }) {
+  const tasksHref = task.applicant ? `/admin/applicants/${task.applicant.id}/tasks` : null;
+  const isOverdue = !!task.dueDate && task.dueDate.getTime() < Date.now();
+  const accent =
+    task.group === "review" ? "#C79A3B"
+    : isOverdue ? "#c0392b"
+    : task.group === "work" ? "#114E3B"
+    : "rgba(0,0,0,0.12)";
+  const followingStatus = task.group === "following" && task.status ? FOLLOWING_STATUS[task.status] : null;
 
   return (
     <div
       className="flex items-center gap-4 px-5 py-4"
-      style={{
-        borderLeft: `3px solid ${isOverdue ? "#c0392b" : task.needsMyAction ? "#114E3B" : "rgba(0,0,0,0.1)"}`,
-        borderBottom: isLast ? "none" : "1px solid rgba(0,0,0,0.05)",
-      }}
+      style={{ borderLeft: `3px solid ${accent}`, borderBottom: isLast ? "none" : "1px solid rgba(0,0,0,0.05)" }}
     >
       <span className="w-5 flex justify-center flex-shrink-0">
-        {canTick && (
+        {task.group === "work" && (
           <CompleteTaskCheckbox kind={task.kind} taskId={task.id} applicationId={task.applicant?.id} title={task.title} />
         )}
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold" style={{ color: "#222" }}>{task.title}</p>
-          <Badge variant={task.kind === "todo" ? "muted" : "blue"}>
-            {task.kind === "todo" ? "To-do" : task.audience === "STUDENT" ? "Student task" : "Applicant task"}
+          <Badge variant={task.kind === "todo" ? "muted" : task.audience === "STUDENT" ? "green" : "blue"}>
+            {task.kind === "todo" ? "To-do" : task.audience === "STUDENT" ? "Student task" : "Internal"}
           </Badge>
         </div>
         {task.description && <p className="text-xs mt-0.5 truncate" style={{ color: "#999" }}>{task.description}</p>}
         <p className="text-xs mt-0.5" style={{ color: "#888" }}>
-          {task.applicant && reviewHref && (
-            <Link href={reviewHref} className="font-medium hover:underline" style={{ color: "#114E3B" }}>
+          {task.applicant && tasksHref && (
+            <Link href={tasksHref} className="font-medium hover:underline" style={{ color: "#114E3B" }}>
               {task.applicant.name} · {task.applicant.applicantNumber}
             </Link>
           )}
@@ -123,19 +128,26 @@ function TaskRow({ task, isOverdue, isLast }: { task: MyTaskItem; isOverdue: boo
           {task.assignedByName && `Assigned by ${task.assignedByName}`}
         </p>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+        {task.group === "review" && <Badge variant="gold">Submitted, awaiting review</Badge>}
+        {followingStatus && <Badge variant={followingStatus.variant}>{followingStatus.label}</Badge>}
         {task.dueDate && (
-          <Badge variant={isOverdue ? "red" : "muted"}>
+          <Badge variant={isOverdue && task.group !== "review" ? "red" : "muted"}>
             {isOverdue ? "Overdue" : "Due"} {task.dueDate.toLocaleDateString("en-NZ", { day: "numeric", month: "short" })}
           </Badge>
         )}
-        {needsReview && reviewHref && (
+        {task.group === "review" && tasksHref && (
           <Link
-            href={reviewHref}
+            href={tasksHref}
             className="text-xs font-semibold px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: "rgba(17,78,59,0.08)", color: "#114E3B" }}
+            style={{ backgroundColor: "#114E3B", color: "#fff" }}
           >
             Review
+          </Link>
+        )}
+        {task.group === "following" && tasksHref && (
+          <Link href={tasksHref} className="text-xs font-semibold" style={{ color: "#114E3B" }}>
+            View →
           </Link>
         )}
       </div>

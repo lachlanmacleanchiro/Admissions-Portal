@@ -242,7 +242,7 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
                       <span className="text-sm min-w-0" style={{ color: "#333" }}>
                         {t.title}
                         <span className="ml-2 text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>
-                          {t.audience === "STAFF" ? "Staff task" : "Student task · staff reviews"}
+                          {t.audience === "STAFF" ? "Internal task" : "Student task · staff follow-up"}
                         </span>
                       </span>
                       {canAssign && (

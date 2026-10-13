@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       eventType: action === "approve" ? "TASK_COMPLETED" : "NOTE_ADDED",
       title: `Task ${action === "approve" ? "Approved" : "Rejected"}: ${task.title}`,
       description: reviewNote || undefined,
-      isVisibleToStudent: true,
+      isVisibleToStudent: task.audience === "STUDENT",
       relatedTaskId: taskId,
       createdById: session!.user.id,
     });

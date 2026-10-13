@@ -311,7 +311,9 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
                   )}
                   <span className="truncate" style={{ color: "#333" }}>{task.title}</span>
                   <span className="flex-shrink-0" style={{ color: task.assignedTo ? "#114E3B" : "#bbb" }}>
-                    {task.assignedTo ? `· ${task.assignedTo.firstName} ${task.assignedTo.lastName}` : "· Unassigned"}
+                    {task.assignedTo
+                      ? `· ${task.audience === "STUDENT" ? "Follow-up: " : ""}${task.assignedTo.firstName} ${task.assignedTo.lastName}`
+                      : "· Unassigned"}
                   </span>
                 </span>
                 <Badge variant={task.status === "APPROVED" ? "green" : task.status === "REJECTED" ? "red" : task.status === "SUBMITTED" ? "gold" : "muted"}>

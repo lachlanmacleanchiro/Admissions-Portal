@@ -72,8 +72,8 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold" style={{ color: "#222" }}>{task.title}</p>
-                    <Badge variant={task.audience === "STAFF" ? "blue" : "outline"}>
-                      {task.audience === "STAFF" ? "Staff" : "Student"}
+                    <Badge variant={task.audience === "STAFF" ? "blue" : "green"}>
+                      {task.audience === "STAFF" ? "Internal" : "Student"}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3">
@@ -91,11 +91,11 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
                 {task.description && <p className="text-xs mb-1" style={{ color: "#aaa" }}>{task.description}</p>}
                 <p className="text-xs mb-3" style={{ color: "#bbb" }}>
                   Assigned by {task.assignedBy.firstName} {task.assignedBy.lastName}
-                  {task.assignedTo && ` · Assigned to ${task.assignedTo.firstName} ${task.assignedTo.lastName}`}
+                  {task.assignedTo && ` · ${task.audience === "STUDENT" ? "Followed up by" : "Assigned to"} ${task.assignedTo.firstName} ${task.assignedTo.lastName}`}
                   {task.dueDate && ` · Due ${new Date(task.dueDate).toLocaleDateString("en-NZ")}`}
                 </p>
 
-                {task.audience === "STAFF" && canAssign && (
+                {canAssign && (
                   <div className="mb-3">
                     <TaskActions
                       applicationId={id}
@@ -103,6 +103,7 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
                       status={task.status}
                       assignedToId={task.assignedTo?.id ?? null}
                       staffOptions={staffOptions}
+                      audience={task.audience}
                     />
                   </div>
                 )}

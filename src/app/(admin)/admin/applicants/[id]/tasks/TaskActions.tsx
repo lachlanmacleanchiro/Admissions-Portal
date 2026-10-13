@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { TaskStatus } from "@/generated/prisma/client";
+import type { TaskStatus, TaskAudience } from "@/generated/prisma/client";
 
 interface StaffOption {
   id: string;
@@ -16,13 +16,16 @@ export function TaskActions({
   status,
   assignedToId,
   staffOptions,
+  audience,
 }: {
   applicationId: string;
   taskId: string;
   status: TaskStatus;
   assignedToId: string | null;
   staffOptions: StaffOption[];
+  audience: TaskAudience;
 }) {
+  const isStudentTask = audience === "STUDENT";
   const router = useRouter();
   const [isToggling, setIsToggling] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -51,7 +54,9 @@ export function TaskActions({
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Student tasks are completed by the student and approved through review, not ticked off. */}
+      {!isStudentTask && (
       <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: isComplete ? "#22c55e" : "#666" }}>
         <input
           type="checkbox"
@@ -62,14 +67,17 @@ export function TaskActions({
         />
         {isComplete ? "Complete" : "Mark complete"}
       </label>
+      )}
+      <span className="text-xs" style={{ color: "#888" }}>{isStudentTask ? "Staff follow-up:" : "Assigned to:"}</span>
       <select
         value={assignedToId ?? ""}
         disabled={isAssigning}
         onChange={(e) => handleAssign(e.target.value)}
+        aria-label={isStudentTask ? "Staff follow-up" : "Assign to"}
         className="text-xs px-2 py-1 rounded-md"
         style={{ backgroundColor: "#F8F8F6", border: "1px solid rgba(0,0,0,0.1)", color: "#555" }}
       >
-        <option value="">Unassigned</option>
+        <option value="">{isStudentTask ? "No one" : "Unassigned"}</option>
         {staffOptions.map((s) => (
           <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
         ))}

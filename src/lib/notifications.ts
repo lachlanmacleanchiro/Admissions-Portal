@@ -73,7 +73,8 @@ export async function notifyStudentTaskReminder(
   applicationId: string
 ): Promise<{ sent: boolean; taskCount: number }> {
   const tasks = await prisma.task.findMany({
-    where: { applicationId, isRequired: true, status: { not: "APPROVED" } },
+    // Student tasks only — internal (staff) tasks must never appear in a student email.
+    where: { applicationId, audience: "STUDENT", isRequired: true, status: { not: "APPROVED" } },
     select: { id: true, title: true },
   });
   if (tasks.length === 0) return { sent: false, taskCount: 0 };

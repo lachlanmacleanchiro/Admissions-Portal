@@ -19,7 +19,13 @@ export interface MyTaskItem {
   /** STAFF tasks are done by staff; STUDENT tasks are done by the applicant and reviewed by staff. */
   audience: "STAFF" | "STUDENT" | null;
   assignedByName: string | null;
-  /** True when the next step is the staff member's, not the applicant's. */
+  /**
+   * review    — a student task you follow that's been submitted, awaiting your review
+   * work      — internal tasks and to-dos you're doing
+   * following — a student task you follow that's still with the student
+   */
+  group: "review" | "work" | "following";
+  /** True when the next step is the staff member's (review or work), not the applicant's. */
   needsMyAction: boolean;
 }
 
@@ -55,6 +61,7 @@ export async function getMyTasks(userId: string): Promise<MyTaskItem[]> {
       status: null,
       audience: null,
       assignedByName: t.createdBy.id === userId ? null : `${t.createdBy.firstName} ${t.createdBy.lastName}`,
+      group: "work",
       needsMyAction: true,
     })),
     ...applicantTasks.map((t): MyTaskItem => ({
@@ -72,7 +79,8 @@ export async function getMyTasks(userId: string): Promise<MyTaskItem[]> {
       status: t.status,
       audience: t.audience,
       assignedByName: `${t.assignedBy.firstName} ${t.assignedBy.lastName}`,
-      // Staff tasks are always on the assignee; student tasks only once submitted for review.
+      // Internal tasks are the assignee's work; student tasks are followed until submitted for review.
+      group: t.audience === "STAFF" ? "work" : t.status === "SUBMITTED" ? "review" : "following",
       needsMyAction: t.audience === "STAFF" || t.status === "SUBMITTED",
     })),
   ];

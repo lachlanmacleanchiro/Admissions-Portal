@@ -171,13 +171,13 @@ export function TaskTemplateManager({ templates, staffOptions }: { templates: Ta
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <p className="text-sm font-semibold" style={{ color: "#222" }}>{t.title}</p>
-                            <Badge variant={t.audience === "STAFF" ? "blue" : "outline"}>{t.audience === "STAFF" ? "Staff" : "Student"}</Badge>
+                            <Badge variant={t.audience === "STAFF" ? "blue" : "green"}>{t.audience === "STAFF" ? "Internal" : "Student"}</Badge>
                             {t.dueDays != null && (
                               <span className="text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>Due {t.dueDays}d</span>
                             )}
                             {t.defaultAssigneeId && staffNames.has(t.defaultAssigneeId) && (
                               <span className="text-[10px] uppercase tracking-wide" style={{ color: "#114E3B" }}>
-                                Assigned to {staffNames.get(t.defaultAssigneeId)}
+                                {t.audience === "STUDENT" ? "Followed up by" : "Assigned to"} {staffNames.get(t.defaultAssigneeId)}
                               </span>
                             )}
                             {t.requiresDocument && (
@@ -313,20 +313,23 @@ function TaskTemplateForm({
       <AudienceToggle value={form.audience} onChange={(a) => set("audience", a)} />
 
       <div>
-        <label className="block text-sm font-semibold text-text mb-1.5">Default assignee</label>
+        <label className="block text-sm font-semibold text-text mb-1.5">{form.audience === "STUDENT" ? "Default staff follow-up" : "Default assignee"}</label>
         <select
           value={form.defaultAssigneeId}
           onChange={(e) => set("defaultAssigneeId", e.target.value)}
           className="w-full px-3 py-2.5 text-sm focus:outline-none text-text rounded-lg"
           style={{ backgroundColor: fieldBg, border: "1.5px solid rgba(0,0,0,0.1)" }}
         >
-          <option value="">Unassigned</option>
+          <option value="">{form.audience === "STUDENT" ? "No one" : "Unassigned"}</option>
           {staffOptions.map((s) => (
             <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
           ))}
         </select>
         <p className="text-xs mt-1" style={{ color: "#888" }}>
-          The staff member this task goes to when it&apos;s created. Can be changed when moving an applicant to this stage.
+          {form.audience === "STUDENT"
+            ? "The staff member who follows this task up and reviews it once the student submits it."
+            : "The staff member this task goes to when it's created."}{" "}
+          Can be changed when moving an applicant to this stage.
         </p>
       </div>
 
@@ -341,7 +344,7 @@ function TaskTemplateForm({
 function AudienceToggle({ value, onChange }: { value: Audience; onChange: (v: Audience) => void }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-text mb-1.5">Who actions this task?</label>
+      <label className="block text-sm font-semibold text-text mb-1.5">Task type</label>
       <div className="flex gap-2">
         {(["STAFF", "STUDENT"] as Audience[]).map((a) => (
           <button
@@ -355,10 +358,15 @@ function AudienceToggle({ value, onChange }: { value: Audience; onChange: (v: Au
                 : { backgroundColor: "#fff", color: "#888", border: "1px solid rgba(0,0,0,0.1)" }
             }
           >
-            {a === "STAFF" ? "Staff" : "Student"}
+            {a === "STAFF" ? "Internal task" : "Student task"}
           </button>
         ))}
       </div>
+      <p className="text-xs mt-1" style={{ color: "#888" }}>
+        {value === "STAFF"
+          ? "Done by staff. The student never sees it."
+          : "Shown in the student's My Tasks for them to complete."}
+      </p>
     </div>
   );
 }
