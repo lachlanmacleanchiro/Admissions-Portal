@@ -262,6 +262,7 @@ model User {
   acknowledgedTasks        Task[]                    @relation("TaskAcknowledgedBy")
   reviewedTasks            Task[]                    @relation("TaskReviewedBy")
   createdTaskTemplates     TaskTemplate[]            @relation("TaskTemplateCreatedBy")
+  defaultAssigneeTemplates TaskTemplate[]            @relation("TaskTemplateDefaultAssignee")
   messages                 Message[]
   mailMessages             MailMessage[]
   verifiedDocuments        Document[]                @relation("DocumentVerifiedBy")
@@ -646,6 +647,9 @@ model TaskTemplate {
   requiredDocumentCategory RequiredDocumentCategory @default(ANY)
   sortOrder                Int                      @default(0)
   isActive                 Boolean                  @default(true)
+  // Staff member tasks from this template are assigned to when generated (optional).
+  defaultAssigneeId        String?
+  defaultAssignee          User?                    @relation("TaskTemplateDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
   createdById              String?
   createdBy                User?                    @relation("TaskTemplateCreatedBy", fields: [createdById], references: [id])
   createdAt                DateTime                 @default(now())

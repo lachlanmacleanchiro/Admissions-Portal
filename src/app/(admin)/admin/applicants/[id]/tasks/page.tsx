@@ -46,7 +46,7 @@ export default async function ApplicantTasksPage({ params }: { params: Promise<{
   return (
     <div>
       {canAssign && (
-        <AssignTaskToggle applicationId={id} staffId={session.user.id} />
+        <AssignTaskToggle applicationId={id} staffId={session.user.id} staffOptions={staffOptions} />
       )}
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

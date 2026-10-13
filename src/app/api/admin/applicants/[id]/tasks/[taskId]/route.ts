@@ -4,6 +4,7 @@ import { permissionGuard } from "@/lib/permissions";
 import { createTimelineEvent } from "@/lib/timeline";
 import { notifyAdminsOfAllTasksComplete, notifyStudentOfDocumentRejection } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
+import { filterActiveStaffIds } from "@/lib/staff";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; taskId: string }> }) {
@@ -106,8 +107,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (action === "toggle-complete") {
-    const guard = permissionGuard(session, "ASSIGN_TASKS");
-    if (guard) return guard;
+    // Staff who can manage tasks, or the staff member the task is assigned to.
+    const isAssignee = session?.user?.role === "STAFF" && task.assignedToId === session.user.id;
+    if (!isAssignee) {
+      const guard = permissionGuard(session, "ASSIGN_TASKS");
+      if (guard) return guard;
+    }
 
     const isNowComplete = task.status !== "APPROVED";
 
@@ -150,7 +155,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const guard = permissionGuard(session, "ASSIGN_TASKS");
     if (guard) return guard;
 
-    const assignedToId: string | null = body.assignedToId ?? null;
+    const assignedToId: string | null = body.assignedToId || null;
+    if (assignedToId && !(await filterActiveStaffIds([assignedToId])).has(assignedToId)) {
+      return NextResponse.json({ error: "Tasks can only be assigned to active staff members." }, { status: 400 });
+    }
 
     await prisma.task.update({ where: { id: taskId }, data: { assignedToId } });
 

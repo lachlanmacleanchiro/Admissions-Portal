@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { countMyActionableTasks } from "@/lib/myTasks";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -17,9 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const visibleIntakeIds = intakeYears.map((iy) => iy.id);
 
   const [pendingStaffTaskCount, intlAttentionCount, unseenSubmissionCount] = await Promise.all([
-    prisma.staffTask.count({
-      where: { assignedToId: session.user.id, status: "PENDING" },
-    }),
+    countMyActionableTasks(session.user.id),
     visibleIntakeIds.length > 0
       ? prisma.internationalCompliance.count({
           where: {

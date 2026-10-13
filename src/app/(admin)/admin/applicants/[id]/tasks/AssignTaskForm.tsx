@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import type { StaffOption } from "@/lib/staff";
 
-export function AssignTaskForm({ applicationId, staffId, onDone }: { applicationId: string; staffId: string; onDone?: () => void }) {
+export function AssignTaskForm({ applicationId, staffId, staffOptions, onDone }: { applicationId: string; staffId: string; staffOptions: StaffOption[]; onDone?: () => void }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    title: "", description: "", dueDate: "", isRequired: true, requiresDocument: false, documentInstructions: "", requiredDocumentCategory: "ANY",
+    title: "", description: "", dueDate: "", isRequired: true, requiresDocument: false, documentInstructions: "", requiredDocumentCategory: "ANY", assignedToId: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -25,7 +26,7 @@ export function AssignTaskForm({ applicationId, staffId, onDone }: { application
       body: JSON.stringify({ ...form, assignedById: staffId }),
     });
     setIsLoading(false);
-    setForm({ title: "", description: "", dueDate: "", isRequired: true, requiresDocument: false, documentInstructions: "", requiredDocumentCategory: "ANY" });
+    setForm({ title: "", description: "", dueDate: "", isRequired: true, requiresDocument: false, documentInstructions: "", requiredDocumentCategory: "ANY", assignedToId: "" });
     router.refresh();
     onDone?.();
   }
@@ -49,6 +50,22 @@ export function AssignTaskForm({ applicationId, staffId, onDone }: { application
           style={textareaStyle}
           required
         />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="new-task-assignee" className="text-sm font-semibold text-text">Assign to</label>
+        <select
+          id="new-task-assignee"
+          value={form.assignedToId}
+          onChange={(e) => set("assignedToId", e.target.value)}
+          className="w-full px-3 py-2.5 text-sm focus:outline-none text-text rounded-lg"
+          style={textareaStyle}
+        >
+          <option value="">Unassigned</option>
+          {staffOptions.map((s) => (
+            <option key={s.id} value={s.id}>{s.id === staffId ? `Me (${s.firstName} ${s.lastName})` : `${s.firstName} ${s.lastName}`}</option>
+          ))}
+        </select>
+        <p className="text-xs" style={{ color: "#888" }}>The staff member responsible. It appears in their My Tasks.</p>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Input label="Due date (optional)" type="date" value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} />

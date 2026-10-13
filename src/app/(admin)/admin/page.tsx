@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { NotImplementedButton } from "@/components/ui/NotImplementedButton";
 import { STAGE_LABELS } from "@/lib/stages";
 import { resolveIntakeFilter } from "@/lib/intakeYears";
+import { getMyTasks } from "@/lib/myTasks";
 import { IntakeFilterPicker } from "@/components/admin/IntakeFilterPicker";
 import type { ApplicationStageKey } from "@/generated/prisma/client";
 
@@ -40,19 +41,18 @@ export default async function AdminDashboardPage({
 
   const intakeFilter = await resolveIntakeFilter(intake);
 
-  const [stageCounts, todayTasks] = await Promise.all([
+  const [stageCounts, myTasks] = await Promise.all([
     prisma.application.groupBy({
       by: ["currentStage"],
       where: intakeFilter.where,
       _count: true,
     }),
-    prisma.staffTask.findMany({
-      where: { assignedToId: session.user.id, status: "PENDING" },
-      include: { application: { select: { applicantNumber: true, student: { select: { firstName: true, lastName: true } } } } },
-      orderBy: [{ dueDate: "asc" }],
-      take: 5,
-    }),
+    getMyTasks(session.user.id),
   ]);
+
+  // Everything that needs this staff member's action (assigned applicant tasks + to-dos), soonest first.
+  const myActionTasks = myTasks.filter((t) => t.needsMyAction);
+  const todayTasks = myActionTasks.slice(0, 5);
 
   const stageMap = Object.fromEntries(
     (stageCounts as { currentStage: ApplicationStageKey; _count: number }[]).map((s) => [s.currentStage, s._count])
@@ -97,7 +97,7 @@ export default async function AdminDashboardPage({
         <div>
           <h1 className="font-serif text-3xl text-text">Admissions Overview</h1>
           <p className="text-sm text-text-muted mt-1">
-            {getGreeting()}, {session.user.firstName}. You have {todayTasks.length} task{todayTasks.length !== 1 ? "s" : ""} requiring action today.
+            {getGreeting()}, {session.user.firstName}. You have {myActionTasks.length} task{myActionTasks.length !== 1 ? "s" : ""} requiring your action.
           </p>
         </div>
         <div className="flex gap-2">
@@ -181,7 +181,7 @@ export default async function AdminDashboardPage({
               const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
               return (
                 <div
-                  key={task.id}
+                  key={task.key}
                   className="flex items-center gap-4 px-5 py-4"
                   style={{
                     borderLeft: `3px solid ${isOverdue ? "#c0392b" : "#C79A3B"}`,
@@ -191,7 +191,7 @@ export default async function AdminDashboardPage({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold" style={{ color: "#222" }}>{task.title}</p>
                     <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>
-                      {task.application?.student ? `${task.application.student.firstName} ${task.application.student.lastName} · ` : "Internal · "}
+                      {task.applicant ? `${task.applicant.name} · ` : "Internal · "}
                       {task.description}
                     </p>
                   </div>

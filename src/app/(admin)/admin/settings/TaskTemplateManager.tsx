@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/stages";
 import type { ApplicationStageKey } from "@/generated/prisma/client";
+import type { StaffOption } from "@/lib/staff";
 
 type Audience = "STAFF" | "STUDENT";
 type DocumentCategory = "ANY" | "DOCUMENT" | "IMAGE";
@@ -22,6 +23,7 @@ interface TaskTemplate {
   requiresDocument: boolean;
   documentInstructions: string | null;
   requiredDocumentCategory: DocumentCategory;
+  defaultAssigneeId: string | null;
 }
 
 interface TaskTemplateFormState {
@@ -32,6 +34,7 @@ interface TaskTemplateFormState {
   requiresDocument: boolean;
   documentInstructions: string;
   requiredDocumentCategory: DocumentCategory;
+  defaultAssigneeId: string;
 }
 
 const EMPTY_FORM: TaskTemplateFormState = {
@@ -42,9 +45,11 @@ const EMPTY_FORM: TaskTemplateFormState = {
   requiresDocument: false,
   documentInstructions: "",
   requiredDocumentCategory: "ANY",
+  defaultAssigneeId: "",
 };
 
-export function TaskTemplateManager({ templates }: { templates: TaskTemplate[] }) {
+export function TaskTemplateManager({ templates, staffOptions }: { templates: TaskTemplate[]; staffOptions: StaffOption[] }) {
+  const staffNames = new Map(staffOptions.map((s) => [s.id, `${s.firstName} ${s.lastName}`]));
   const router = useRouter();
   const [openStage, setOpenStage] = useState<ApplicationStageKey | null>(null);
   const [newForm, setNewForm] = useState<TaskTemplateFormState>(EMPTY_FORM);
@@ -80,6 +85,7 @@ export function TaskTemplateManager({ templates }: { templates: TaskTemplate[] }
       requiresDocument: t.requiresDocument,
       documentInstructions: t.documentInstructions ?? "",
       requiredDocumentCategory: t.requiredDocumentCategory,
+      defaultAssigneeId: t.defaultAssigneeId ?? "",
     });
   }
 
@@ -150,6 +156,7 @@ export function TaskTemplateManager({ templates }: { templates: TaskTemplate[] }
                         onSave={() => saveEdit(t.id)}
                         isSaving={isSaving}
                         saveLabel="Save"
+                        staffOptions={staffOptions}
                       />
                     ) : (
                       <div className="flex items-start gap-3">
@@ -167,6 +174,11 @@ export function TaskTemplateManager({ templates }: { templates: TaskTemplate[] }
                             <Badge variant={t.audience === "STAFF" ? "blue" : "outline"}>{t.audience === "STAFF" ? "Staff" : "Student"}</Badge>
                             {t.dueDays != null && (
                               <span className="text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>Due {t.dueDays}d</span>
+                            )}
+                            {t.defaultAssigneeId && staffNames.has(t.defaultAssigneeId) && (
+                              <span className="text-[10px] uppercase tracking-wide" style={{ color: "#114E3B" }}>
+                                Assigned to {staffNames.get(t.defaultAssigneeId)}
+                              </span>
                             )}
                             {t.requiresDocument && (
                               <span className="text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>
@@ -193,6 +205,7 @@ export function TaskTemplateManager({ templates }: { templates: TaskTemplate[] }
                     onSave={() => handleCreate(stage)}
                     isSaving={isSaving}
                     saveLabel="Add task"
+                    staffOptions={staffOptions}
                     saveDisabled={!newForm.title.trim() || !newForm.description.trim()}
                     fieldBg="#fff"
                   />
@@ -215,6 +228,7 @@ function TaskTemplateForm({
   saveLabel,
   saveDisabled,
   fieldBg = "#F8F8F6",
+  staffOptions,
 }: {
   form: TaskTemplateFormState;
   onChange: (form: TaskTemplateFormState) => void;
@@ -224,6 +238,7 @@ function TaskTemplateForm({
   saveLabel: string;
   saveDisabled?: boolean;
   fieldBg?: string;
+  staffOptions: StaffOption[];
 }) {
   function set<K extends keyof TaskTemplateFormState>(field: K, value: TaskTemplateFormState[K]) {
     onChange({ ...form, [field]: value });
@@ -296,6 +311,24 @@ function TaskTemplateForm({
       )}
 
       <AudienceToggle value={form.audience} onChange={(a) => set("audience", a)} />
+
+      <div>
+        <label className="block text-sm font-semibold text-text mb-1.5">Default assignee</label>
+        <select
+          value={form.defaultAssigneeId}
+          onChange={(e) => set("defaultAssigneeId", e.target.value)}
+          className="w-full px-3 py-2.5 text-sm focus:outline-none text-text rounded-lg"
+          style={{ backgroundColor: fieldBg, border: "1.5px solid rgba(0,0,0,0.1)" }}
+        >
+          <option value="">Unassigned</option>
+          {staffOptions.map((s) => (
+            <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+          ))}
+        </select>
+        <p className="text-xs mt-1" style={{ color: "#888" }}>
+          The staff member this task goes to when it&apos;s created. Can be changed when moving an applicant to this stage.
+        </p>
+      </div>
 
       <div className="flex gap-2 justify-end">
         {onCancel && <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>}

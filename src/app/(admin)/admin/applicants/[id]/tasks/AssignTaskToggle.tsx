@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { AssignTaskForm } from "./AssignTaskForm";
+import type { StaffOption } from "@/lib/staff";
 
-export function AssignTaskToggle({ applicationId, staffId }: { applicationId: string; staffId: string }) {
+export function AssignTaskToggle({ applicationId, staffId, staffOptions }: { applicationId: string; staffId: string; staffOptions: StaffOption[] }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -25,7 +26,7 @@ export function AssignTaskToggle({ applicationId, staffId }: { applicationId: st
 
       {isOpen && (
         <div className="mb-2">
-          <AssignTaskForm applicationId={applicationId} staffId={staffId} onDone={() => setIsOpen(false)} />
+          <AssignTaskForm applicationId={applicationId} staffId={staffId} staffOptions={staffOptions} onDone={() => setIsOpen(false)} />
         </div>
       )}
     </div>

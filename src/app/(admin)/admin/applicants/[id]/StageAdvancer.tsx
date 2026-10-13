@@ -12,6 +12,19 @@ interface StageAdvancerProps {
   currentStage: ApplicationStageKey;
 }
 
+interface NewTask {
+  templateId: string;
+  title: string;
+  audience: TaskAudience;
+  defaultAssigneeId: string | null;
+}
+
+interface StaffOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
 interface PreviewTask {
   id: string;
   title: string;
@@ -34,6 +47,11 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
   const [completeIds, setCompleteIds] = useState<Set<string>>(new Set());
   // Existing-stage tasks the staff member has UNCHECKED "keep" for — these get reset.
   const [keepIds, setKeepIds] = useState<Set<string>>(new Set());
+  // Tasks the target stage will create, and who each is assigned to (templateId → staff id, "" = unassigned).
+  const [newTasks, setNewTasks] = useState<NewTask[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [canAssign, setCanAssign] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,6 +82,11 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
     setExistingStageTasks(data.existingStageTasks ?? []);
     // Default: keep every already-completed task from a prior visit to this stage.
     setKeepIds(new Set((data.existingStageTasks ?? []).map((t: PreviewTask) => t.id)));
+    const upcoming: NewTask[] = data.newTasks ?? [];
+    setNewTasks(upcoming);
+    setAssignments(Object.fromEntries(upcoming.map((t) => [t.templateId, t.defaultAssigneeId ?? ""])));
+    setCanAssign(!!data.canAssign);
+    setStaffOptions(data.staffOptions ?? []);
     setIsPreviewLoading(false);
   }
 
@@ -98,6 +121,7 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
         notifyStudent,
         completeTaskIds: Array.from(completeIds),
         resetTaskIds,
+        ...(canAssign ? { assignments } : {}),
       }),
     });
     setIsLoading(false);
@@ -197,6 +221,45 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
                       {t.title}
                       <span className="text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>({t.status.toLowerCase()})</span>
                     </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!isPreviewLoading && newTasks.length > 0 && (
+              <div className="rounded-lg px-4 py-3" style={{ backgroundColor: "#F8F8F6", border: "1px solid rgba(0,0,0,0.08)" }}>
+                <p className="text-sm font-semibold mb-1" style={{ color: "#222" }}>
+                  {newTasks.length} new task{newTasks.length === 1 ? "" : "s"} for {STAGE_LABELS[targetStage]}
+                </p>
+                <p className="text-xs mb-2.5" style={{ color: "#777" }}>
+                  {canAssign
+                    ? "Choose who's responsible for each. They'll see it in My Tasks."
+                    : "These will be created when you confirm."}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {newTasks.map((t) => (
+                    <div key={t.templateId} className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="text-sm min-w-0" style={{ color: "#333" }}>
+                        {t.title}
+                        <span className="ml-2 text-[10px] uppercase tracking-wide" style={{ color: "#aaa" }}>
+                          {t.audience === "STAFF" ? "Staff task" : "Student task · staff reviews"}
+                        </span>
+                      </span>
+                      {canAssign && (
+                        <select
+                          aria-label={`Assign "${t.title}" to`}
+                          value={assignments[t.templateId] ?? ""}
+                          onChange={(e) => setAssignments((prev) => ({ ...prev, [t.templateId]: e.target.value }))}
+                          className="text-xs px-2 py-1.5 rounded-md"
+                          style={{ backgroundColor: "#fff", border: "1px solid rgba(0,0,0,0.12)", color: "#333", minWidth: 170 }}
+                        >
+                          <option value="">Unassigned</option>
+                          {staffOptions.map((s) => (
+                            <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

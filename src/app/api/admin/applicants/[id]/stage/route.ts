@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { permissionGuard } from "@/lib/permissions";
+import { permissionGuard, hasPermission } from "@/lib/permissions";
 import { createTimelineEvent, STAGE_ORDER } from "@/lib/timeline";
 import { generateTasksForStage } from "@/lib/taskTemplates";
 import { notifyStudentOfNewTasks, notifyStudentOfStageChange } from "@/lib/notifications";
@@ -21,6 +21,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // IDs of already-existing tasks for the target stage the staff member chose to reset (re-do), rather than keep.
   const resetTaskIds: string[] = Array.isArray(body.resetTaskIds) ? body.resetTaskIds : [];
   const notifyStudent: boolean = body.notifyStudent ?? true;
+  // templateId → staff user id ("" = unassigned) for the tasks this stage creates.
+  // Only honoured for staff who can assign tasks; otherwise template defaults apply.
+  const assignments: Record<string, string> =
+    hasPermission(session, "ASSIGN_TASKS") && body.assignments && typeof body.assignments === "object"
+      ? Object.fromEntries(
+          Object.entries(body.assignments as Record<string, unknown>).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string"
+          )
+        )
+      : {};
 
   const app = await prisma.application.findUnique({ where: { id }, select: { currentStage: true } });
   if (!app) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -58,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       : []),
   ]);
 
-  const newTasks = await generateTasksForStage(id, nextStage, session!.user.id);
+  const newTasks = await generateTasksForStage(id, nextStage, session!.user.id, assignments);
 
   await createTimelineEvent({
     applicationId: id,
