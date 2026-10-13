@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const completeTaskIds: string[] = Array.isArray(body.completeTaskIds) ? body.completeTaskIds : [];
   // IDs of already-existing tasks for the target stage the staff member chose to reset (re-do), rather than keep.
   const resetTaskIds: string[] = Array.isArray(body.resetTaskIds) ? body.resetTaskIds : [];
-  const notifyStudent: boolean = body.notifyStudent ?? true;
+  // Only email the student when explicitly asked (e.g. pipeline drag-and-drop doesn't).
+  const notifyStudent: boolean = body.notifyStudent === true;
   // templateId → staff user id ("" = unassigned) for the tasks this stage creates.
   // Only honoured for staff who can assign tasks; otherwise template defaults apply.
   const assignments: Record<string, string> =

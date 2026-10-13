@@ -38,7 +38,8 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [targetStage, setTargetStage] = useState<ApplicationStageKey | null>(null);
   const [notes, setNotes] = useState("");
-  const [notifyStudent, setNotifyStudent] = useState(true);
+  // Off by default: staff tick it when they want the student emailed about this change.
+  const [notifyStudent, setNotifyStudent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [staleTasks, setStaleTasks] = useState<PreviewTask[]>([]);
@@ -69,7 +70,7 @@ export function StageAdvancer({ applicationId, currentStage }: StageAdvancerProp
     setTargetStage(stage);
     setIsMenuOpen(false);
     setNotes("");
-    setNotifyStudent(true);
+    setNotifyStudent(false);
     setCompleteIds(new Set());
     setIsPreviewLoading(true);
     const res = await fetch(`/api/admin/applicants/${applicationId}/stage-preview`, {
