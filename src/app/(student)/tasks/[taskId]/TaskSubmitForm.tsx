@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CATEGORY_ACCEPT } from "@/lib/documentValidation";
+import { uploadWithProgress } from "@/lib/uploadWithProgress";
+import { UploadProgress } from "@/components/ui/UploadProgress";
 import type { RequiredDocumentCategory } from "@/generated/prisma/client";
 
 interface TaskSubmitFormProps {
@@ -26,6 +28,8 @@ export function TaskSubmitForm({ taskId, requiresDocument, documentInstructions,
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  // null = not uploading; 0–1 while the file sends.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,13 +48,12 @@ export function TaskSubmitForm({ taskId, requiresDocument, documentInstructions,
       formData.append("taskId", taskId);
       formData.append("documentType", "TASK_SUBMISSION");
 
-      const uploadRes = await fetch("/api/student/documents", {
-        method: "POST",
-        body: formData,
-      });
+      setUploadProgress(0);
+      const uploadRes = await uploadWithProgress<{ error?: string }>("/api/student/documents", formData, setUploadProgress);
 
       if (!uploadRes.ok) {
-        setError("Document upload failed. Please try again.");
+        setUploadProgress(null);
+        setError(uploadRes.data?.error ?? "The upload didn't work. Check your connection and try again.");
         setIsLoading(false);
         return;
       }
@@ -64,6 +67,7 @@ export function TaskSubmitForm({ taskId, requiresDocument, documentInstructions,
     });
 
     setIsLoading(false);
+    setUploadProgress(null);
 
     if (!res.ok) {
       setError("Submission failed. Please try again.");
@@ -86,11 +90,17 @@ export function TaskSubmitForm({ taskId, requiresDocument, documentInstructions,
             <span className="text-sm font-semibold text-text block mb-1.5">
               Upload document <span style={{ color: "#c0392b" }}>*</span>
             </span>
+            {uploadProgress !== null ? (
+              <div className="p-6 rounded-xl" style={{ border: "2px solid rgba(17,78,59,0.2)", backgroundColor: "#F8F8F6" }}>
+                <UploadProgress progress={uploadProgress} fileName={file?.name} processingLabel="Submitting your task…" />
+              </div>
+            ) : (
             <div
               className="p-6 text-center cursor-pointer rounded-xl transition-colors"
               style={{ border: "2px dashed rgba(0,0,0,0.12)", backgroundColor: "#F8F8F6" }}
             >
               <input
+                disabled={isLoading}
                 type="file"
                 accept={CATEGORY_ACCEPT[requiredDocumentCategory]}
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -111,6 +121,7 @@ export function TaskSubmitForm({ taskId, requiresDocument, documentInstructions,
                 )}
               </label>
             </div>
+            )}
           </label>
         </div>
       )}

@@ -75,3 +75,9 @@ h1, h2, h3, h4, h5, h6 {
   background: #C8C8C0;
   border-radius: 3px;
 }
+
+/* Indeterminate upload bar (UploadProgress "Processing…" state) */
+@keyframes upload-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

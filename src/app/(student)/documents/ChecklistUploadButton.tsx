@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { uploadWithProgress } from "@/lib/uploadWithProgress";
+import { UploadProgress } from "@/components/ui/UploadProgress";
 
 interface ChecklistUploadButtonProps {
   documentType: string;
@@ -17,7 +19,11 @@ const MAX_SIZE = 10 * 1024 * 1024;
 export function ChecklistUploadButton({ documentType, accept, label, allowedMimeTypes, typeHint }: ChecklistUploadButtonProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [fileName, setFileName] = useState("");
+  // Keeps "Saving…" up until the refreshed page (with the new status) has loaded.
+  const [isRefreshing, startRefresh] = useTransition();
+  const isUploading = progress !== null || isRefreshing;
   const [error, setError] = useState("");
 
   async function handleFile(file: File | undefined) {
@@ -31,19 +37,20 @@ export function ChecklistUploadButton({ documentType, accept, label, allowedMime
       setError("That file is larger than 10MB.");
       return;
     }
-    setIsUploading(true);
+    setFileName(file.name);
+    setProgress(0);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("documentType", documentType);
-    const res = await fetch("/api/student/documents", { method: "POST", body: formData }).catch(() => null);
-    setIsUploading(false);
+    const res = await uploadWithProgress<{ error?: string }>("/api/student/documents", formData, setProgress);
     if (inputRef.current) inputRef.current.value = "";
-    if (!res || !res.ok) {
-      const data = await res?.json().catch(() => ({}));
-      setError(data?.error ?? "The upload didn't work. Please try again.");
+    if (!res.ok) {
+      setProgress(null);
+      setError(res.data?.error ?? "The upload didn't work. Check your connection and try again.");
       return;
     }
-    router.refresh();
+    setProgress(null);
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -56,15 +63,20 @@ export function ChecklistUploadButton({ documentType, accept, label, allowedMime
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={isUploading}
-        className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-60"
-        style={{ backgroundColor: "#114E3B", color: "#fff" }}
-      >
-        {isUploading ? "Uploading…" : label}
-      </button>
+      {isUploading ? (
+        <div className="w-48">
+          <UploadProgress progress={progress ?? 1} fileName={fileName} processingLabel="Saving…" compact />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "#114E3B", color: "#fff" }}
+        >
+          {label}
+        </button>
+      )}
       {error && <p role="alert" className="text-xs text-right" style={{ color: "#c0392b" }}>{error}</p>}
     </div>
   );

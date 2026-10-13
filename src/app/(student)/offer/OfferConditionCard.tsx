@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
+import { uploadWithProgress } from "@/lib/uploadWithProgress";
+import { UploadProgress } from "@/components/ui/UploadProgress";
 
 interface EvidenceDocument {
   id: string;
@@ -21,12 +23,13 @@ interface Condition {
 export function OfferConditionCard({ condition, canUpload }: { condition: Condition; canUpload: boolean }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const isLoading = progress !== null;
   const [error, setError] = useState("");
 
   async function handleUpload() {
     if (!file) return;
-    setIsLoading(true);
+    setProgress(0);
     setError("");
 
     const formData = new FormData();
@@ -34,12 +37,11 @@ export function OfferConditionCard({ condition, canUpload }: { condition: Condit
     formData.append("documentType", "OFFER_CONDITION_EVIDENCE");
     formData.append("offerConditionId", condition.id);
 
-    const res = await fetch("/api/student/documents", { method: "POST", body: formData });
-    setIsLoading(false);
+    const res = await uploadWithProgress<{ error?: string }>("/api/student/documents", formData, setProgress);
+    setProgress(null);
 
     if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Upload failed.");
+      setError(res.data?.error ?? "The upload didn't work. Check your connection and try again.");
       return;
     }
 
@@ -66,7 +68,13 @@ export function OfferConditionCard({ condition, canUpload }: { condition: Condit
         </div>
       )}
 
-      {canUpload && condition.status === "PENDING" && (
+      {isLoading && (
+        <div className="mt-2 max-w-sm">
+          <UploadProgress progress={progress} fileName={file?.name} processingLabel="Saving…" compact />
+        </div>
+      )}
+
+      {canUpload && condition.status === "PENDING" && !isLoading && (
         <div className="flex items-center gap-2 mt-2">
           <input
             type="file"

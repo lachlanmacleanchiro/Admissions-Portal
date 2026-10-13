@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { uploadWithProgress } from "@/lib/uploadWithProgress";
+import { UploadProgress } from "@/components/ui/UploadProgress";
 
 const STEPS = [
   "Choose Path",
@@ -165,6 +167,8 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
   const [fileErrors, setFileErrors] = useState<{ citizenshipProof?: string; ieltsCertificate?: string; recommendationLetter?: string }>({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // 0–1 while the application and its files upload; null otherwise.
+  const [submitProgress, setSubmitProgress] = useState<number | null>(null);
   const [savedEducationIndices, setSavedEducationIndices] = useState<Set<number>>(new Set());
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailCheckStatus, setEmailCheckStatus] = useState<"idle" | "checking" | "taken" | "available">("idle");
@@ -374,12 +378,13 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
     if (ieltsCertificate) formData.append("ieltsCertificate", ieltsCertificate);
     if (recommendationLetter) formData.append("recommendationLetter", recommendationLetter);
 
-    const res = await fetch("/api/apply", { method: "POST", body: formData });
+    setSubmitProgress(0);
+    const res = await uploadWithProgress<{ error?: string }>("/api/apply", formData, setSubmitProgress);
     setIsLoading(false);
+    setSubmitProgress(null);
 
     if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Submission failed. Please try again.");
+      setError(res.data?.error ?? "Submission failed. Check your connection and try again.");
       return;
     }
 
@@ -928,8 +933,18 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
           </p>
         )}
 
+        {submitProgress !== null && (
+          <div className="mt-5 rounded-lg px-4 py-3" style={{ backgroundColor: "#F8F8F6", border: "1px solid rgba(17,78,59,0.15)" }}>
+            <UploadProgress
+              progress={submitProgress}
+              fileName={citizenshipProof || ieltsCertificate || recommendationLetter ? "your application and documents" : "your application"}
+              processingLabel="Creating your account…"
+            />
+          </div>
+        )}
+
         <div className="flex justify-between mt-8">
-          <Button variant="ghost" onClick={back} disabled={step === 0}>Back</Button>
+          <Button variant="ghost" onClick={back} disabled={step === 0 || isLoading}>Back</Button>
           {step === STEPS.length - 1 ? (
             <Button onClick={handleSubmit} isLoading={isLoading}>Submit Application</Button>
           ) : (
