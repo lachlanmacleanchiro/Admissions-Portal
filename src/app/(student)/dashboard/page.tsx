@@ -94,13 +94,6 @@ function buildAttentionItems({
   return [...urgent, ...soon, ...info];
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -143,9 +136,6 @@ export default async function DashboardPage() {
   return (
     <div className="px-8 py-8 max-w-4xl">
       {/* Header */}
-      <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
-        {getGreeting()}
-      </p>
       <h1 className="font-serif text-4xl text-text mb-2">
         Kia ora, {session.user.firstName}
       </h1>
