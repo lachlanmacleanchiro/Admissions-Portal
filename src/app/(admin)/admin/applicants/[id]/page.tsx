@@ -16,7 +16,7 @@ import { StageDocumentsPanel } from "./StageDocumentsPanel";
 import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
 import { WidgetBoard, type BoardWidget } from "@/components/admin/WidgetBoard";
 import { normaliseLayout } from "@/lib/applicantWidgets";
-import { formatDateOnly, formatSuburbCity, formatChiroExperience, formatEducationYears } from "@/lib/applicantDisplay";
+import { formatDateOnly, toDateInputValue, formatSuburbCity, formatChiroExperience, formatEducationYears } from "@/lib/applicantDisplay";
 import Link from "next/link";
 
 export default async function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -174,15 +174,24 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
                   lastName: app.student.lastName,
                   email: app.student.email,
                   phone: app.phone ?? "",
+                  dateOfBirth: toDateInputValue(app.dateOfBirth),
+                  citizenshipCountry: app.citizenshipCountry ?? "",
                   city: app.city ?? "",
                   address: app.address ?? "",
+                  suburb: app.suburb ?? "",
                   postcode: app.postcode ?? "",
                   country: app.country ?? "",
                   guardianName: app.guardianName ?? "",
+                  guardianRelation: app.guardianRelation ?? "",
                   guardianEmail: app.guardianEmail ?? "",
                   guardianPhone: app.guardianPhone ?? "",
                   gpaScore: app.gpaScore?.toString() ?? "",
                   prerequisitesMet: app.prerequisitesMet,
+                  chiropracticExperience: app.chiropracticExperience.map((e) => ({
+                    chiropractorName: e.chiropractorName,
+                    status: e.status,
+                    date: toDateInputValue(e.date),
+                  })),
                 }}
               />
             )}
