@@ -8,6 +8,7 @@ import { ApplicantTabs } from "@/components/admin/ApplicantTabs";
 import { StageAdvancer } from "./StageAdvancer";
 import { SendReminderButton } from "./SendReminderButton";
 import { FlagEditor } from "./FlagEditor";
+import { YearLevelEditor } from "./YearLevelEditor";
 import { getMessagingMode } from "@/lib/messaging";
 import { WidgetEditProvider } from "@/components/admin/WidgetEditContext";
 import { MoveWidgetsButton } from "@/components/admin/MoveWidgetsButton";
@@ -44,7 +45,6 @@ export default async function ApplicantLayout({
     where: { id },
     select: {
       id: true,
-      applicantNumber: true,
       category: true,
       yearLevel: true,
       currentStage: true,
@@ -86,11 +86,9 @@ export default async function ApplicantLayout({
             <FlagEditor applicationId={id} flagNote={app.flagNote} flagColor={app.flagColor} canEdit={canEditProfile} />
           </div>
           <div className="flex items-center gap-2 text-xs" style={{ color: "#666" }}>
-            <span className="font-mono">{app.applicantNumber}</span>
-            <span>·</span>
             <span>{app.category === "DOMESTIC" ? "Domestic" : "International"}</span>
             <span>·</span>
-            <span>Year {app.yearLevel === "YEAR_1" ? "1" : "2"}</span>
+            <YearLevelEditor applicationId={id} yearLevel={app.yearLevel} canEdit={canEditProfile} />
             <span>·</span>
             <span>{app.intakeYear.label}</span>
           </div>
