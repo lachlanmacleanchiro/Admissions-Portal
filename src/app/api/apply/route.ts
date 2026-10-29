@@ -73,7 +73,7 @@ async function handleApply(req: NextRequest) {
   const payload = JSON.parse(formData.get("payload") as string);
 
   const {
-    category, yearLevel, intakeYearId,
+    category, intakeYearId,
     firstName, lastName, middleName, preferredFirstName, email, password,
     dateOfBirth, gender, preferredPronouns, maoriPacificaStatus, citizenshipCountry,
     hasDisabilitySupportNeed, disabilitySupportCategory,
@@ -92,14 +92,14 @@ async function handleApply(req: NextRequest) {
     guardianName, guardianEmail, guardianPhone, guardianRelation,
   } = payload;
 
-  if (!category || !yearLevel || !intakeYearId || !firstName || !lastName || !email || !password) {
+  if (!category || !intakeYearId || !firstName || !lastName || !email || !password) {
     return Response.json({ error: "Missing required fields." }, { status: 400 });
+  }
+  if (!suburb?.trim()) {
+    return Response.json({ error: "Suburb is required." }, { status: 400 });
   }
   if (!postcode?.trim()) {
     return Response.json({ error: "Postcode is required." }, { status: 400 });
-  }
-  if (category === "DOMESTIC" && !nationalStudentNumber?.trim()) {
-    return Response.json({ error: "National Student Number (NSN) is required for domestic applicants." }, { status: 400 });
   }
   if (!declarationSignatureName?.trim()) {
     return Response.json({ error: "Declaration signature is required." }, { status: 400 });
@@ -147,7 +147,8 @@ async function handleApply(req: NextRequest) {
         intakeYearId: intakeYear.id,
         applicantNumber,
         category,
-        yearLevel,
+        // Applicants don't choose a year level; staff correct it on the applicant file.
+        yearLevel: "YEAR_1",
         currentStage: "NEW_SUBMITTED",
         status: "IN_PROGRESS",
         middleName, preferredFirstName,

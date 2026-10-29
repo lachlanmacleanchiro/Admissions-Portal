@@ -29,10 +29,17 @@ interface CourseInput {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
-  const guard = permissionGuard(session, "ADVANCE_APPLICATION_STAGE");
+  const guard = permissionGuard(session, "EDIT_APPLICANT_PROFILE");
   if (guard) return guard;
 
-  const { prerequisitesMet, prerequisiteNotes, courses } = await req.json();
+  const { prerequisitesMet, prerequisiteNotes, courses, gpaScore: rawGpaScore } = await req.json();
+
+  const gpaScore = rawGpaScore === undefined ? undefined
+    : rawGpaScore === null || rawGpaScore === "" ? null
+    : parseFloat(rawGpaScore);
+  if (typeof gpaScore === "number" && Number.isNaN(gpaScore)) {
+    return NextResponse.json({ error: "Overall Grade Average must be a number." }, { status: 400 });
+  }
 
   const application = await prisma.application.findUnique({ where: { id }, select: { id: true } });
   if (!application) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -47,6 +54,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: {
         prerequisitesMet: prerequisitesMet !== undefined ? !!prerequisitesMet : undefined,
         prerequisiteNotes: prerequisiteNotes !== undefined ? prerequisiteNotes : undefined,
+        gpaScore,
       },
     }),
     ...(Array.isArray(courses)
