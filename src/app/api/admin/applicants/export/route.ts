@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     "GPA",
     "Prerequisites Met",
     "Interview Score (/30)",
-    "Essay Score (/100)",
+    "Essay Score (%)",
     "Visa Status",
     "Health Insurance",
     "IELTS Status",

@@ -12,8 +12,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { score, notes } = await req.json();
 
-  if (score !== undefined && score !== null && (score < 1 || score > 100)) {
-    return NextResponse.json({ error: "Score must be between 1 and 100." }, { status: 400 });
+  if (score !== undefined && score !== null && (score < 0 || score > 100)) {
+    return NextResponse.json({ error: "Score must be between 0 and 100." }, { status: 400 });
   }
 
   const application = await prisma.application.findUnique({ where: { id }, select: { id: true } });
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     objectType: "EssayReview",
     objectId: review.id,
     action: "UPDATE",
-    actionDetail: `Essay review updated${score != null ? ` — score ${score}/100` : ""}`,
+    actionDetail: `Essay review updated${score != null ? ` — score ${score}%` : ""}`,
     userId: session!.user.id,
   });
 
