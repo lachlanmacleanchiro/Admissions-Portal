@@ -83,7 +83,12 @@ export function EditApplicantForm({ applicationId, initial }: EditApplicantFormP
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // Start from the latest saved values; other panels may have changed them since.
+          setForm(initial);
+          setError("");
+          setOpen(true);
+        }}
         className="text-xs font-semibold transition-colors"
         style={{ color: "#114E3B" }}
       >

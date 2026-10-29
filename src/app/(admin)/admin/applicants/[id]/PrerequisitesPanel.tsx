@@ -43,6 +43,14 @@ export function PrerequisitesPanel({
   const [legacy, setLegacy] = useState<PrerequisiteRow[]>(savedRows.legacy);
   const [gpa, setGpa] = useState(gpaScore?.toString() ?? "");
   const [met, setMet] = useState(prerequisitesMet);
+  // GPA and "met" can also be saved from the Edit form; pick up the new saved
+  // values so this panel never sends back stale ones.
+  const [syncedFrom, setSyncedFrom] = useState({ gpaScore, prerequisitesMet });
+  if (syncedFrom.gpaScore !== gpaScore || syncedFrom.prerequisitesMet !== prerequisitesMet) {
+    setSyncedFrom({ gpaScore, prerequisitesMet });
+    setGpa(gpaScore?.toString() ?? "");
+    setMet(prerequisitesMet);
+  }
   const [expanded, setExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
