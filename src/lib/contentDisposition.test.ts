@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildContentDisposition } from "./contentDisposition";
+import { buildContentDisposition, safeContentType } from "./contentDisposition";
+
+test("SVG (which can carry script) is never served inline", () => {
+  assert.match(buildContentDisposition("x.svg", "image/svg+xml"), /^attachment;/);
+  assert.match(buildContentDisposition("x.html", "text/html"), /^attachment;/);
+});
+
+test("safeContentType ignores an untrusted declared type outside the allowlist", () => {
+  assert.equal(safeContentType("image/svg+xml", "x.svg"), "application/octet-stream");
+  assert.equal(safeContentType("text/html", "x.pdf"), "application/pdf");
+  assert.equal(safeContentType("image/png", "x.png"), "image/png");
+  assert.equal(safeContentType(undefined, "x.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  assert.equal(safeContentType(undefined, "x.exe"), "application/octet-stream");
+});
 
 test("PDF and images are inline", () => {
   assert.match(buildContentDisposition("a.pdf", "application/pdf"), /^inline;/);
