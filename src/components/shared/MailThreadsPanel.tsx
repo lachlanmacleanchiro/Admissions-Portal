@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 
@@ -44,6 +45,7 @@ export function MailThreadsPanel({
   viewerRole: SenderRole;
   composerLabel: string;
 }) {
+  const router = useRouter();
   const [threads, setThreads] = useState<ThreadSummary[] | null>(null);
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -74,7 +76,11 @@ export function MailThreadsPanel({
   async function openThread(id: string) {
     setActiveId(id);
     const res = await fetch(`${baseUrl}/${id}`);
-    if (res.ok) setActiveThread(await res.json());
+    if (res.ok) {
+      setActiveThread(await res.json());
+      // Opening a thread marks it read; refresh so the applicant tab's unread badge updates.
+      if (viewerRole === "STAFF") router.refresh();
+    }
   }
 
   useEffect(() => {

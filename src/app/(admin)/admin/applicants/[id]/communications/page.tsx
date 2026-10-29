@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/permissions";
 import { getMessagingMode } from "@/lib/messaging";
 import { MessagesChatWidget } from "../MessagesChatWidget";
 import { MailThreadsPanel } from "@/components/shared/MailThreadsPanel";
+import { RefreshOnMount } from "./RefreshOnMount";
 
 // Communications tab: the applicant conversation, in the style chosen in
 // Settings → Communication (Chat or Threads).
@@ -28,15 +29,20 @@ export default async function ApplicantCommunicationsPage({ params }: { params: 
   if (!app) notFound();
 
   // Staff viewing the conversation counts as reading it (drives the student's "Seen" receipts).
+  let hadUnread = false;
   if (messagingMode === "CHAT" && app.messageThread) {
-    await prisma.message.updateMany({
+    const { count } = await prisma.message.updateMany({
       where: { threadId: app.messageThread.id, senderRole: "STUDENT", isRead: false },
       data: { isRead: true, readAt: new Date() },
     });
+    hadUnread = count > 0;
   }
 
   return messagingMode === "CHAT" ? (
-    <MessagesChatWidget applicationId={id} studentFirstName={app.student.firstName} thread={app.messageThread ?? null} />
+    <>
+      <RefreshOnMount when={hadUnread} />
+      <MessagesChatWidget applicationId={id} studentFirstName={app.student.firstName} thread={app.messageThread ?? null} />
+    </>
   ) : (
     <MailThreadsPanel
       baseUrl={`/api/admin/applicants/${id}/mail-threads`}
