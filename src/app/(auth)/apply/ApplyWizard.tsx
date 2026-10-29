@@ -39,7 +39,6 @@ interface ExperienceEntry {
 
 interface FormState {
   category: "DOMESTIC" | "INTERNATIONAL" | "";
-  yearLevel: "YEAR_1" | "YEAR_2" | "";
   intakeYearId: string;
 
   firstName: string;
@@ -105,7 +104,7 @@ interface FormState {
 }
 
 const INITIAL_STATE: FormState = {
-  category: "", yearLevel: "", intakeYearId: "",
+  category: "", intakeYearId: "",
   firstName: "", lastName: "", middleName: "", preferredFirstName: "", email: "", password: "", confirmPassword: "",
   dateOfBirth: "", gender: "", preferredPronouns: "", maoriPacificaStatus: "", citizenshipCountry: "",
   hasDisabilitySupportNeed: false, disabilitySupportCategory: "",
@@ -160,7 +159,10 @@ interface IntakeYearOption {
 export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOption[] }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(INITIAL_STATE);
+  // With only one intake open there's nothing to choose, so preselect it.
+  const [form, setForm] = useState<FormState>(() =>
+    openIntakeYears.length === 1 ? { ...INITIAL_STATE, intakeYearId: openIntakeYears[0].id } : INITIAL_STATE
+  );
   const [citizenshipProof, setCitizenshipProof] = useState<File | null>(null);
   const [ieltsCertificate, setIeltsCertificate] = useState<File | null>(null);
   const [recommendationLetter, setRecommendationLetter] = useState<File | null>(null);
@@ -243,7 +245,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
   function validateStep(): string | null {
     switch (step) {
       case 0:
-        if (!form.category || !form.yearLevel) return "Please select your applicant type and year of enrolment.";
+        if (!form.category) return "Please select your applicant type.";
         if (!form.intakeYearId) return "Please select an intake year.";
         return null;
       case 1: {
@@ -259,18 +261,17 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
         return null;
       }
       case 2:
-        if (form.hasDisabilitySupportNeed && !form.disabilitySupportCategory.trim()) return "Please describe your support category.";
+        if (form.hasDisabilitySupportNeed && !form.disabilitySupportCategory.trim()) return "Please provide details of your support need.";
         if (form.hasCriminalConviction && !form.criminalConvictionDetails.trim()) return "Please provide details of your criminal conviction(s).";
         if (form.hasPendingLegalProceedings && !form.pendingLegalProceedingsDetails.trim()) return "Please provide details of your pending legal proceedings.";
         return null;
       case 3:
-        if (!form.address || !form.city || !form.country || !form.postcode.trim()) return "Please complete your permanent address, including postcode.";
+        if (!form.address || !form.suburb.trim() || !form.city || !form.country || !form.postcode.trim()) return "Please complete your permanent address, including postcode.";
         if (form.useAlternativeAddress && (!form.alternativeAddress.trim() || !form.alternativeCity.trim() || !form.alternativeCountry.trim())) {
           return "Please complete your alternative postal address, or untick the checkbox.";
         }
         return null;
       case 4:
-        if (form.category === "DOMESTIC" && !form.nationalStudentNumber.trim()) return "Please provide your National Student Number (NSN).";
         if (form.educationHistory.length === 0) return "Please add at least one education history entry.";
         for (const e of form.educationHistory) {
           if (!e.institutionName.trim() || !e.country.trim() || !e.yearStarted.trim()) {
@@ -302,7 +303,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
         return null;
       case 8:
         if (!form.personalStatement.trim()) return "Please write your personal statement.";
-        if (form.personalStatement.trim().split(/\s+/).length > 300) return "Personal statement should be around 250 words (max 300).";
+        if (form.personalStatement.trim().split(/\s+/).length > 250) return "Personal statement must be 250 words or fewer.";
         return null;
       case 9:
         if (!form.referralSource) return "Please tell us how you heard about NZCC.";
@@ -335,7 +336,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
     setIsLoading(true);
 
     const payload = {
-      category: form.category, yearLevel: form.yearLevel, intakeYearId: form.intakeYearId,
+      category: form.category, intakeYearId: form.intakeYearId,
       firstName: form.firstName, lastName: form.lastName, middleName: form.middleName || undefined,
       preferredFirstName: form.preferredFirstName || undefined, email: form.email, password: form.password,
       dateOfBirth: form.dateOfBirth, gender: form.gender, preferredPronouns: form.preferredPronouns || undefined,
@@ -479,16 +480,14 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
             <p className="text-sm text-text-muted mb-2">Select the option that best describes your application.</p>
             <div className="grid grid-cols-2 gap-3">
               {([
-                ["DOMESTIC", "YEAR_1", "NZ Domestic — Year 1"],
-                ["DOMESTIC", "YEAR_2", "NZ Domestic — Year 2"],
-                ["INTERNATIONAL", "YEAR_1", "International — Year 1"],
-                ["INTERNATIONAL", "YEAR_2", "International — Year 2"],
-              ] as const).map(([cat, yr, label]) => {
-                const isSelected = form.category === cat && form.yearLevel === yr;
+                ["DOMESTIC", "NZ Domestic"],
+                ["INTERNATIONAL", "International"],
+              ] as const).map(([cat, label]) => {
+                const isSelected = form.category === cat;
                 return (
                   <button
                     key={label}
-                    onClick={() => { set("category", cat); set("yearLevel", yr); }}
+                    onClick={() => set("category", cat)}
                     className="px-4 py-5 rounded-xl text-sm font-semibold text-left transition-colors"
                     style={{
                       backgroundColor: isSelected ? "#114E3B" : "#F8F8F6",
@@ -503,31 +502,20 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
             </div>
 
             <div className="mt-2">
-              <label className="text-sm font-semibold text-text mb-1.5 block">Intake year *</label>
               {openIntakeYears.length === 0 ? (
-                <p className="text-sm" style={{ color: "#c0392b" }}>
-                  There are no intakes currently open for applications. Please check back later.
-                </p>
+                <>
+                  <label className="text-sm font-semibold text-text mb-1.5 block">Intake year *</label>
+                  <p className="text-sm" style={{ color: "#c0392b" }}>
+                    There are no intakes currently open for applications. Please check back later.
+                  </p>
+                </>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {openIntakeYears.map((iy) => {
-                    const isSelected = form.intakeYearId === iy.id;
-                    return (
-                      <button
-                        key={iy.id}
-                        onClick={() => set("intakeYearId", iy.id)}
-                        className="px-4 py-3 rounded-xl text-sm font-semibold text-left transition-colors"
-                        style={{
-                          backgroundColor: isSelected ? "#114E3B" : "#F8F8F6",
-                          color: isSelected ? "#fff" : "#333",
-                          border: `1.5px solid ${isSelected ? "#114E3B" : "rgba(0,0,0,0.1)"}`,
-                        }}
-                      >
-                        {iy.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <Select label="Intake year *" value={form.intakeYearId} onChange={(e) => set("intakeYearId", e.target.value)}>
+                  <option value="">Select an intake…</option>
+                  {openIntakeYears.map((iy) => (
+                    <option key={iy.id} value={iy.id}>{iy.label}</option>
+                  ))}
+                </Select>
               )}
             </div>
           </div>
@@ -620,7 +608,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
               </div>
               {form.hasDisabilitySupportNeed && (
                 <div className="mt-3">
-                  <Input label="Please describe your support category" value={form.disabilitySupportCategory} onChange={(e) => set("disabilitySupportCategory", e.target.value)} />
+                  <Input label="Please provide details" value={form.disabilitySupportCategory} onChange={(e) => set("disabilitySupportCategory", e.target.value)} />
                 </div>
               )}
             </div>
@@ -657,7 +645,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
             <p className="text-[11px] font-semibold uppercase tracking-widest mt-2" style={{ color: "#999" }}>Permanent Address</p>
             <Input label="Street address *" value={form.address} onChange={(e) => set("address", e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Suburb" value={form.suburb} onChange={(e) => set("suburb", e.target.value)} />
+              <Input label="Suburb *" value={form.suburb} onChange={(e) => set("suburb", e.target.value)} />
               <Input label="City *" value={form.city} onChange={(e) => set("city", e.target.value)} />
               <Input label="Postcode *" value={form.postcode} onChange={(e) => set("postcode", e.target.value)} />
               <Input label="Country *" value={form.country} onChange={(e) => set("country", e.target.value)} />
@@ -690,14 +678,17 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
               </div>
             </div>
             <Input
-              label={`National Student Number (NSN)${form.category === "DOMESTIC" ? " *" : ""}`}
+              label="National Student Number (NSN)"
               value={form.nationalStudentNumber}
               onChange={(e) => set("nationalStudentNumber", e.target.value)}
             />
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#999" }}>Education History *</p>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#999" }}>Education History *</p>
+                  <p className="text-xs text-text-muted mt-0.5">Please list all courses taken.</p>
+                </div>
                 <button onClick={addEducationEntry} className="text-xs font-semibold" style={{ color: "#114E3B" }}>+ Add entry</button>
               </div>
               {form.educationHistory.length === 0 && <p className="text-xs text-text-muted">Please add at least one entry.</p>}
@@ -859,7 +850,10 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
               onChange={(e) => set("personalStatement", e.target.value)}
               placeholder="Around 250 words…"
             />
-            <p className="text-xs" style={{ color: wordCount > 300 ? "#c0392b" : "#aaa" }}>{wordCount} words</p>
+            <div className="flex justify-between text-xs">
+              <span className="text-text-muted">250 words max.</span>
+              <span style={{ color: wordCount > 250 ? "#c0392b" : "#aaa" }}>{wordCount} / 250</span>
+            </div>
           </div>
         )}
 
