@@ -513,7 +513,7 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
                 <Select label="Intake year *" value={form.intakeYearId} onChange={(e) => set("intakeYearId", e.target.value)}>
                   <option value="">Select an intake…</option>
                   {openIntakeYears.map((iy) => (
-                    <option key={iy.id} value={iy.id}>{iy.label}</option>
+                    <option key={iy.id} value={iy.id}>{iy.year}</option>
                   ))}
                 </Select>
               )}
