@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/Badge";
 import { STAGE_STATUS_LABELS, STAGE_DISPLAY_STEPS, STAGE_ORDER, stageDisplayIndex } from "@/lib/stages";
 import { EditApplicantForm } from "./EditApplicantForm";
 import { TaskCompleteCheckbox } from "./TaskCompleteCheckbox";
-import { DocumentVerifyButtons } from "./documents/DocumentVerifyButtons";
 import { OfferPanel } from "./OfferPanel";
 import { NotesPanel } from "./NotesPanel";
 import { InterviewReviewPanel } from "./InterviewReviewPanel";
@@ -17,6 +16,7 @@ import { StageDocumentsPanel } from "./StageDocumentsPanel";
 import { buildAutoVariableValues } from "@/lib/documentTemplateValues";
 import { WidgetBoard, type BoardWidget } from "@/components/admin/WidgetBoard";
 import { normaliseLayout } from "@/lib/applicantWidgets";
+import { formatDateOnly, formatSuburbCity, formatChiroExperience, formatEducationYears } from "@/lib/applicantDisplay";
 import Link from "next/link";
 
 export default async function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +36,6 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
         take: 5,
         include: { assignedTo: { select: { firstName: true, lastName: true } } },
       },
-      documents: { orderBy: { uploadedAt: "desc" }, take: 5 },
       timelineEvents: { orderBy: { occurredAt: "desc" }, take: 5 },
       offers: {
         orderBy: { issuedAt: "desc" },
@@ -49,6 +48,7 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
       interviewReview: true,
       essayReview: true,
       chiropracticExperience: { orderBy: { date: "desc" } },
+      educationHistory: { orderBy: [{ yearStarted: "desc" }, { createdAt: "asc" }] },
       prerequisiteCourses: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -72,8 +72,6 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
   const canAdvance = hasPermission(session, "ADVANCE_APPLICATION_STAGE");
   const canAssignTasks = hasPermission(session, "ASSIGN_TASKS");
   const canSendMessages = hasPermission(session, "SEND_MESSAGES");
-  const canViewDocs = hasPermission(session, "VIEW_DOCUMENTS");
-  const canVerifyDocs = hasPermission(session, "VERIFY_DOCUMENTS");
   const canEditProfile = hasPermission(session, "EDIT_APPLICANT_PROFILE");
   const canWithdraw = hasPermission(session, "WITHDRAW_APPLICATION");
 
@@ -190,19 +188,20 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
             )}
           </div>
           <dl className="divide-y" style={{ borderColor: "rgba(0,0,0,0.05)" }}>
-            {[
+            {([
+              ["Date Submitted", app.submittedAt?.toLocaleDateString("en-NZ", { timeZone: "Pacific/Auckland" }) ?? "—"],
+              ["Mobile", app.phone ?? "—"],
               ["Email", app.student.email],
-              ["Phone", app.phone ?? "—"],
-              ["City", app.city ?? "—"],
-              ["Submitted", app.submittedAt ? new Date(app.submittedAt).toLocaleDateString("en-NZ") : "—"],
-              ["Next of Kin", app.guardianName ?? "—"],
-              ["GPA", app.gpaScore?.toString() ?? "—"],
-              ["Chiropractor reference", app.chiropracticExperience[0]?.chiropractorName ?? "—"],
-              ["Prerequisites met", app.prerequisitesMet ? "Yes" : "No"],
-            ].map(([k, v], i, arr) => (
-              <div key={k} className="flex justify-between px-5 py-3 text-sm" style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+              ["DOB", formatDateOnly(app.dateOfBirth)],
+              ["Country of Citizenship", app.citizenshipCountry ?? "—"],
+              ["Address", formatSuburbCity(app.suburb, app.city)],
+              ["Chiropractic Experience", app.chiropracticExperience.length > 0
+                ? formatChiroExperience(app.chiropracticExperience).map((line) => <span key={line} className="block">{line}</span>)
+                : "—"],
+            ] as [string, React.ReactNode][]).map(([k, v], i, arr) => (
+              <div key={k} className="flex justify-between gap-4 px-5 py-3 text-sm" style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
                 <dt style={{ color: "#666" }}>{k}</dt>
-                <dd className="font-medium" style={{ color: "#222" }}>{v}</dd>
+                <dd className="font-medium text-right" style={{ color: "#222" }}>{v}</dd>
               </div>
             ))}
           </dl>
@@ -215,17 +214,34 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
           </div>
           <dl className="divide-y" style={{ borderColor: "rgba(0,0,0,0.05)" }}>
             {[
-              ["Current/last school", app.currentSchool ?? "—"],
-              ["NCEA level", app.nceaLevel ?? "—"],
               ["Completed tertiary study", app.hasCompletedTertiaryStudy ? "Yes" : "No"],
-              ["National Student Number", app.nationalStudentNumber ?? "—"],
-            ].map(([k, v], i, arr) => (
-              <div key={k} className="flex justify-between px-5 py-3 text-sm" style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+              ["National Student Number", app.nationalStudentNumber || "—"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between px-5 py-3 text-sm" style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                 <dt style={{ color: "#666" }}>{k}</dt>
                 <dd className="font-medium" style={{ color: "#222" }}>{v}</dd>
               </div>
             ))}
           </dl>
+          <div className="px-5 py-3">
+            <p className="text-sm mb-2" style={{ color: "#666" }}>Education history</p>
+            {app.educationHistory.length === 0 ? (
+              <p className="text-xs" style={{ color: "#888" }}>No education history entered.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {app.educationHistory.map((e) => (
+                  <li key={e.id} className="text-sm">
+                    <span className="font-medium block" style={{ color: "#222" }}>{e.institutionName}</span>
+                    <span className="text-xs" style={{ color: "#888" }}>
+                      {[e.level === "SECONDARY" ? "Secondary" : "Tertiary", e.qualification, e.country, formatEducationYears(e.yearStarted, e.yearCompleted)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
     ) },
     { id: "disclosures", node: (
@@ -303,40 +319,6 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
           )}
         </div>
     ) },
-    { id: "documents", node: canViewDocs ? (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", backgroundColor: "#F8F8F6" }}>
-              <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Documents</p>
-              <Link href={`/admin/applicants/${id}/documents`} className="text-xs font-semibold" style={{ color: "#114E3B" }}>View all →</Link>
-            </div>
-            {app.documents.length === 0 ? (
-              <p className="px-5 py-4 text-xs" style={{ color: "#888" }}>No documents uploaded.</p>
-            ) : (
-              app.documents.map((doc, i) => (
-                <div key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3 text-xs" style={{ borderBottom: i < app.documents.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
-                  <a
-                    href={`/api/files/${doc.storageKey}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate max-w-[45%] hover:underline"
-                    style={{ color: "#114E3B" }}
-                  >
-                    {doc.filename}
-                  </a>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {canVerifyDocs && doc.status === "PENDING_REVIEW" ? (
-                      <DocumentVerifyButtons documentId={doc.id} applicationId={id} />
-                    ) : (
-                      <Badge variant={doc.status === "VERIFIED" ? "green" : doc.status === "REJECTED" ? "red" : "muted"}>
-                        {doc.status.replace("_", " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-    ) : null },
     { id: "offer", node: (
         <OfferPanel
           applicationId={id}
