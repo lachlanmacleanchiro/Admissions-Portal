@@ -5,6 +5,8 @@ import { requirePermission, hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { DocumentVerifyButtons } from "./DocumentVerifyButtons";
 import { DocumentDeleteButton } from "./DocumentDeleteButton";
+import { DocumentPublishButton } from "./DocumentPublishButton";
+import { StaffUploadForm } from "./StaffUploadForm";
 
 export default async function ApplicantDocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,17 +27,21 @@ export default async function ApplicantDocumentsPage({ params }: { params: Promi
 
   const canVerify = hasPermission(session, "VERIFY_DOCUMENTS");
   const canDelete = hasPermission(session, "DELETE_DOCUMENTS");
+  const canUpload = hasPermission(session, "UPLOAD_DOCUMENTS");
+  const canPublish = hasPermission(session, "PUBLISH_DOCUMENTS");
 
   return (
     <div>
+      {canUpload && <StaffUploadForm applicationId={id} canPublish={canPublish} />}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         {app.documents.length === 0 ? (
           <div className="px-5 py-16 text-center text-sm" style={{ color: "#aaa" }}>No documents uploaded.</div>
         ) : (
           app.documents.map((doc, i) => {
+            const isStaffUpload = !!doc.uploadedByStaffId;
             const isVerified = doc.status === "VERIFIED";
             const isRejected = doc.status === "REJECTED";
-            const accentColor = isVerified ? "#22c55e" : isRejected ? "#c0392b" : "#C79A3B";
+            const accentColor = isStaffUpload ? "#3b82f6" : isVerified ? "#22c55e" : isRejected ? "#c0392b" : "#C79A3B";
 
             return (
               <div
@@ -49,14 +55,21 @@ export default async function ApplicantDocumentsPage({ params }: { params: Promi
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold" style={{ color: "#222" }}>{doc.filename}</p>
                   <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>
-                    {doc.documentType} · Uploaded {new Date(doc.uploadedAt).toLocaleDateString("en-NZ")}
+                    {isStaffUpload ? "Staff upload" : doc.documentType} · Uploaded {new Date(doc.uploadedAt).toLocaleDateString("en-NZ")}
                   </p>
+                  {doc.description && <p className="text-xs mt-0.5" style={{ color: "#666" }}>{doc.description}</p>}
                   {doc.verificationNote && <p className="text-xs mt-0.5 italic" style={{ color: "#aaa" }}>{doc.verificationNote}</p>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={isVerified ? "green" : isRejected ? "red" : "muted"}>
-                    {doc.status.replace("_", " ")}
-                  </Badge>
+                  {isStaffUpload ? (
+                    <Badge variant={doc.publishedToStudent ? "green" : "muted"}>
+                      {doc.publishedToStudent ? "Visible to student" : "Draft · staff only"}
+                    </Badge>
+                  ) : (
+                    <Badge variant={isVerified ? "green" : isRejected ? "red" : "muted"}>
+                      {doc.status.replace("_", " ")}
+                    </Badge>
+                  )}
                   <a
                     href={`/api/files/${doc.storageKey}`}
                     target="_blank"
@@ -66,7 +79,10 @@ export default async function ApplicantDocumentsPage({ params }: { params: Promi
                   >
                     View
                   </a>
-                  {canVerify && doc.status === "PENDING_REVIEW" && (
+                  {isStaffUpload && canPublish && (
+                    <DocumentPublishButton documentId={doc.id} applicationId={id} published={doc.publishedToStudent} />
+                  )}
+                  {canVerify && !isStaffUpload && doc.status === "PENDING_REVIEW" && (
                     <DocumentVerifyButtons documentId={doc.id} applicationId={id} />
                   )}
                   {canDelete && (

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildContentDisposition, safeContentType } from "@/lib/contentDisposition";
+import { hasPermission } from "@/lib/permissions";
 import { NextRequest } from "next/server";
 import path from "path";
 import fs from "fs/promises";
@@ -15,9 +16,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ key
   const filename = key.join("/");
 
   // Students may only open files attached to their own application.
+  // Staff need permission to view documents; staff uploads are hidden from the student until published.
   const isStudent = session.user.role === "STUDENT";
+  if (!isStudent && !hasPermission(session, "VIEW_DOCUMENTS")) {
+    return new Response("Forbidden", { status: 403 });
+  }
   const document = await prisma.document.findFirst({
-    where: { storageKey: filename, ...(isStudent && { application: { studentId: session.user.id } }) },
+    where: {
+      storageKey: filename,
+      ...(isStudent && { application: { studentId: session.user.id }, publishedToStudent: true }),
+    },
     select: { filename: true, mimeType: true },
   });
   if (isStudent && !document) return new Response("Not found", { status: 404 });

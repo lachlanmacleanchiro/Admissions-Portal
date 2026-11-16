@@ -176,6 +176,8 @@ enum PermissionKey {
   VIEW_DOCUMENTS
   VERIFY_DOCUMENTS
   DELETE_DOCUMENTS
+  UPLOAD_DOCUMENTS
+  PUBLISH_DOCUMENTS
   SEND_MESSAGES
   VIEW_ALL_MESSAGES
   VIEW_INTERNATIONAL
@@ -268,6 +270,7 @@ model User {
   messages                 Message[]
   mailMessages             MailMessage[]
   verifiedDocuments        Document[]                @relation("DocumentVerifiedBy")
+  staffUploadedDocuments   Document[]                @relation("DocumentUploadedByStaff")
   stageAdvances            ApplicationStageHistory[] @relation("StageAdvancedBy")
   staffTasks               StaffTask[]               @relation("StaffTaskAssignedTo")
   createdStaffTasks        StaffTask[]               @relation("StaffTaskCreatedBy")
@@ -802,6 +805,13 @@ model Document {
   verifiedBy       User?           @relation("DocumentVerifiedBy", fields: [verifiedById], references: [id])
   verifiedAt       DateTime?
   verificationNote String?
+  // Set when staff (not the student) uploaded this file. Null = uploaded by the student.
+  uploadedByStaffId String?
+  uploadedByStaff   User?          @relation("DocumentUploadedByStaff", fields: [uploadedByStaffId], references: [id])
+  // Whether the student can see this file. Always true for student uploads; staff uploads
+  // start as drafts unless the uploader can publish.
+  publishedToStudent Boolean       @default(true)
+  publishedAt      DateTime?
   uploadedAt       DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 

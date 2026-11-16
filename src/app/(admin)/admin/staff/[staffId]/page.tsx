@@ -18,7 +18,7 @@ const PERMISSION_GROUPS: { label: string; keys: PermissionKey[] }[] = [
   },
   {
     label: "Documents",
-    keys: ["REQUEST_DOCUMENTS", "VIEW_DOCUMENTS", "VERIFY_DOCUMENTS", "DELETE_DOCUMENTS"],
+    keys: ["REQUEST_DOCUMENTS", "VIEW_DOCUMENTS", "VERIFY_DOCUMENTS", "DELETE_DOCUMENTS", "UPLOAD_DOCUMENTS", "PUBLISH_DOCUMENTS"],
   },
   {
     label: "Messages",
@@ -52,6 +52,8 @@ const PERMISSION_LABELS: Record<string, string> = {
   VIEW_DOCUMENTS: "View documents",
   VERIFY_DOCUMENTS: "Verify / reject documents",
   DELETE_DOCUMENTS: "Delete documents",
+  UPLOAD_DOCUMENTS: "Upload documents to an applicant",
+  PUBLISH_DOCUMENTS: "Publish uploaded documents to the student portal",
   SEND_MESSAGES: "Send messages",
   VIEW_ALL_MESSAGES: "View all messages",
   VIEW_INTERNATIONAL: "View international compliance",

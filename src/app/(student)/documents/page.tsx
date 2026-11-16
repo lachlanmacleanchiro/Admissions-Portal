@@ -61,7 +61,7 @@ export default async function DocumentsPage() {
   const application = await prisma.application.findUnique({
     where: { studentId: session.user.id },
     include: {
-      documents: { orderBy: { uploadedAt: "desc" }, include: { task: { select: { title: true } } } },
+      documents: { where: { uploadedByStaffId: null }, orderBy: { uploadedAt: "desc" }, include: { task: { select: { title: true } } } },
       tasks: {
         where: { audience: "STUDENT", requiresDocument: true },
         orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
@@ -71,6 +71,13 @@ export default async function DocumentsPage() {
   });
 
   if (!application) return <div className="p-8 text-text-muted">Application not found.</div>;
+
+  // Files the admissions team has chosen to share with this student.
+  const sharedDocuments = await prisma.document.findMany({
+    where: { applicationId: application.id, uploadedByStaffId: { not: null }, publishedToStudent: true },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, filename: true, storageKey: true, description: true, publishedAt: true, uploadedAt: true },
+  });
 
   // Latest application-level upload of each type (documents are newest first).
   const latestByType = new Map<string, (typeof application.documents)[number]>();
@@ -211,6 +218,35 @@ export default async function DocumentsPage() {
           })}
         </ul>
       </section>
+
+      {/* Shared by the admissions team */}
+      {sharedDocuments.length > 0 && (
+        <section className="mb-8" aria-labelledby="shared-heading">
+          <h2 id="shared-heading" className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: "#999" }}>
+            Shared with you by NZCC
+          </h2>
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {sharedDocuments.map((doc, i) => (
+              <div
+                key={doc.id}
+                className="flex items-center gap-4 px-5 py-3.5"
+                style={{ borderBottom: i < sharedDocuments.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: "#222" }}>{doc.filename}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>
+                    {doc.description ? `${doc.description} · ` : ""}
+                    Shared {new Date(doc.publishedAt ?? doc.uploadedAt).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <a href={`/api/files/${doc.storageKey}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold" style={{ color: "#114E3B" }}>
+                  View
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Other uploads */}
       <section className="mb-8" aria-labelledby="other-heading">

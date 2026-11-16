@@ -107,7 +107,7 @@ export default async function DashboardPage() {
         orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
       },
       documents: {
-        where: { taskId: null, offerConditionId: null },
+        where: { taskId: null, offerConditionId: null, uploadedByStaffId: null },
         orderBy: { uploadedAt: "desc" },
         select: { documentType: true, status: true },
       },
