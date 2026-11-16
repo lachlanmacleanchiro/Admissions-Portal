@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import {
   isYearLevel, parseDateOnly, parseChiropracticExperience, ProfileValidationError, type ChiroExperienceInput,
 } from "@/lib/profileUpdate";
+import { isResidencyStatus } from "@/lib/residency";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     firstName, lastName, phone, city, address, postcode, country,
     guardianName, guardianEmail, guardianPhone, flagNote, flagColor, gpaScore, prerequisitesMet,
     yearLevel, citizenshipCountry, suburb, guardianRelation,
+    isNzCitizen, residencyStatus, residencyStatusDetails,
   } = body;
+
+  if (isNzCitizen !== undefined && isNzCitizen !== null && typeof isNzCitizen !== "boolean") {
+    return NextResponse.json({ error: "Invalid citizenship answer." }, { status: 400 });
+  }
+  if (residencyStatus !== undefined && residencyStatus !== null && residencyStatus !== "" && !isResidencyStatus(residencyStatus)) {
+    return NextResponse.json({ error: "Invalid residency status." }, { status: 400 });
+  }
+  if (isNzCitizen === false && residencyStatus === "OTHER" && !String(residencyStatusDetails ?? "").trim()) {
+    return NextResponse.json({ error: "Please describe the residency status." }, { status: 400 });
+  }
 
   if (yearLevel !== undefined && !isYearLevel(yearLevel)) {
     return NextResponse.json({ error: "Invalid year level." }, { status: 400 });
@@ -66,6 +78,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(yearLevel !== undefined && { yearLevel }),
         ...(dateOfBirth !== undefined && { dateOfBirth }),
         ...(citizenshipCountry !== undefined && { citizenshipCountry }),
+        ...(isNzCitizen !== undefined && {
+          isNzCitizen,
+          // Citizens have no residency status; clear it so stale answers don't linger.
+          residencyStatus: isNzCitizen === false && residencyStatus ? residencyStatus : null,
+          residencyStatusDetails:
+            isNzCitizen === false && residencyStatus === "OTHER" ? String(residencyStatusDetails).trim() : null,
+        }),
         ...(suburb !== undefined && { suburb }),
         ...(guardianRelation !== undefined && { guardianRelation }),
       },

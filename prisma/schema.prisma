@@ -61,6 +61,14 @@ enum ReferralSource {
   OTHER
 }
 
+enum ResidencyStatus {
+  PERMANENT_RESIDENT
+  RESIDENT_VISA
+  AUSTRALIAN_CITIZEN_OR_RESIDENT
+  REFUGEE_OR_PROTECTED_PERSON
+  OTHER
+}
+
 enum EducationLevel {
   SECONDARY
   TERTIARY
@@ -408,6 +416,10 @@ model Application {
   preferredPronouns     String?
   maoriPacificaStatus   MaoriPacificaStatus?
   citizenshipCountry    String?
+  // Domestic applicants only: null = not asked / not answered.
+  isNzCitizen             Boolean?
+  residencyStatus         ResidencyStatus?
+  residencyStatusDetails  String?
   phone                 String?
   address               String?
   suburb                String?

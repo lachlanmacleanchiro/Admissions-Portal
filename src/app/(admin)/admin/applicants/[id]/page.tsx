@@ -1,4 +1,5 @@
-﻿import { auth } from "@/lib/auth";
+﻿import { describeResidency } from "@/lib/residency";
+import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, hasPermission } from "@/lib/permissions";
@@ -176,6 +177,10 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
                   phone: app.phone ?? "",
                   dateOfBirth: toDateInputValue(app.dateOfBirth),
                   citizenshipCountry: app.citizenshipCountry ?? "",
+                  category: app.category,
+                  isNzCitizen: app.isNzCitizen === null ? "" : app.isNzCitizen ? "YES" : "NO",
+                  residencyStatus: app.residencyStatus ?? "",
+                  residencyStatusDetails: app.residencyStatusDetails ?? "",
                   city: app.city ?? "",
                   address: app.address ?? "",
                   suburb: app.suburb ?? "",
@@ -203,6 +208,14 @@ export default async function ApplicantDetailPage({ params }: { params: Promise<
               ["Email", app.student.email],
               ["DOB", formatDateOnly(app.dateOfBirth)],
               ["Country of Citizenship", app.citizenshipCountry ?? "—"],
+              ...(app.category === "DOMESTIC"
+                ? [
+                    ["NZ Citizen", app.isNzCitizen === null ? "—" : app.isNzCitizen ? "Yes" : "No"] as [string, React.ReactNode],
+                    ...(app.isNzCitizen === false
+                      ? [["Residency Status", describeResidency(app) ?? "—"] as [string, React.ReactNode]]
+                      : []),
+                  ]
+                : []),
               ["Address", formatSuburbCity(app.suburb, app.city)],
               ["Chiropractic Experience", app.chiropracticExperience.length > 0
                 ? formatChiroExperience(app.chiropracticExperience).map((line) => <span key={line} className="block">{line}</span>)

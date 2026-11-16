@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { uploadWithProgress } from "@/lib/uploadWithProgress";
 import { UploadProgress } from "@/components/ui/UploadProgress";
+import { RESIDENCY_STATUS_LABELS, RESIDENCY_STATUS_KEYS } from "@/lib/residency";
 
 const STEPS = [
   "Choose Path",
@@ -53,6 +54,9 @@ interface FormState {
   preferredPronouns: string;
   maoriPacificaStatus: string;
   citizenshipCountry: string;
+  isNzCitizen: "YES" | "NO" | "";
+  residencyStatus: string;
+  residencyStatusDetails: string;
 
   hasDisabilitySupportNeed: boolean;
   disabilitySupportCategory: string;
@@ -107,6 +111,7 @@ const INITIAL_STATE: FormState = {
   category: "", intakeYearId: "",
   firstName: "", lastName: "", middleName: "", preferredFirstName: "", email: "", password: "", confirmPassword: "",
   dateOfBirth: "", gender: "", preferredPronouns: "", maoriPacificaStatus: "", citizenshipCountry: "",
+  isNzCitizen: "", residencyStatus: "", residencyStatusDetails: "",
   hasDisabilitySupportNeed: false, disabilitySupportCategory: "",
   hasCriminalConviction: false, criminalConvictionDetails: "",
   hasPendingLegalProceedings: false, pendingLegalProceedingsDetails: "",
@@ -256,6 +261,11 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
         if (form.password !== form.confirmPassword) return "Passwords do not match.";
         if (form.password.length < 8) return "Password must be at least 8 characters.";
         if (!form.dateOfBirth || !form.gender || !form.maoriPacificaStatus || !form.citizenshipCountry) return "Please complete all required fields.";
+        if (form.category === "DOMESTIC") {
+          if (!form.isNzCitizen) return "Please tell us whether you are a New Zealand citizen.";
+          if (form.isNzCitizen === "NO" && !form.residencyStatus) return "Please select your residency status.";
+          if (form.isNzCitizen === "NO" && form.residencyStatus === "OTHER" && !form.residencyStatusDetails.trim()) return "Please describe your residency status.";
+        }
         if (fileErrors.citizenshipProof) return "Please resolve the citizenship / residency proof upload error.";
         if (!citizenshipProof) return "Please upload your citizenship / residency proof.";
         return null;
@@ -341,6 +351,9 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
       preferredFirstName: form.preferredFirstName || undefined, email: form.email, password: form.password,
       dateOfBirth: form.dateOfBirth, gender: form.gender, preferredPronouns: form.preferredPronouns || undefined,
       maoriPacificaStatus: form.maoriPacificaStatus, citizenshipCountry: form.citizenshipCountry,
+      isNzCitizen: form.category === "DOMESTIC" && form.isNzCitizen ? form.isNzCitizen === "YES" : undefined,
+      residencyStatus: form.category === "DOMESTIC" && form.isNzCitizen === "NO" ? form.residencyStatus : undefined,
+      residencyStatusDetails: form.category === "DOMESTIC" && form.isNzCitizen === "NO" && form.residencyStatus === "OTHER" ? form.residencyStatusDetails.trim() : undefined,
       hasDisabilitySupportNeed: form.hasDisabilitySupportNeed, disabilitySupportCategory: form.disabilitySupportCategory || undefined,
       hasCriminalConviction: form.hasCriminalConviction, criminalConvictionDetails: form.hasCriminalConviction ? form.criminalConvictionDetails : undefined,
       hasPendingLegalProceedings: form.hasPendingLegalProceedings, pendingLegalProceedingsDetails: form.hasPendingLegalProceedings ? form.pendingLegalProceedingsDetails : undefined,
@@ -589,6 +602,28 @@ export function ApplyWizard({ openIntakeYears }: { openIntakeYears: IntakeYearOp
               <option value="BOTH">Both</option>
             </Select>
             <Input label="Country of citizenship *" value={form.citizenshipCountry} onChange={(e) => set("citizenshipCountry", e.target.value)} />
+            {form.category === "DOMESTIC" && (
+              <>
+                <Select label="Are you a New Zealand citizen? *" value={form.isNzCitizen} onChange={(e) => set("isNzCitizen", e.target.value as FormState["isNzCitizen"])}>
+                  <option value="">Select…</option>
+                  <option value="YES">Yes</option>
+                  <option value="NO">No</option>
+                </Select>
+                {form.isNzCitizen === "NO" && (
+                  <>
+                    <Select label="Residency status *" value={form.residencyStatus} onChange={(e) => set("residencyStatus", e.target.value)}>
+                      <option value="">Select…</option>
+                      {RESIDENCY_STATUS_KEYS.map((key) => (
+                        <option key={key} value={key}>{RESIDENCY_STATUS_LABELS[key]}</option>
+                      ))}
+                    </Select>
+                    {form.residencyStatus === "OTHER" && (
+                      <Input label="Please describe your residency status *" value={form.residencyStatusDetails} onChange={(e) => set("residencyStatusDetails", e.target.value)} />
+                    )}
+                  </>
+                )}
+              </>
+            )}
             <div>
               <label className="text-sm font-semibold text-text mb-1.5 block">Citizenship / residency proof *</label>
               <p className="text-xs text-text-muted mb-2">Passport, birth certificate, whakapapa, or refugee documentation. PDF only · Max 10MB.</p>

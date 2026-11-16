@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { RESIDENCY_STATUS_LABELS, RESIDENCY_STATUS_KEYS } from "@/lib/residency";
 
 type ChiroStatus = "OBSERVING" | "UNDER_CARE";
 
@@ -23,6 +24,10 @@ interface EditApplicantFormProps {
     phone: string;
     dateOfBirth: string;
     citizenshipCountry: string;
+    category: "DOMESTIC" | "INTERNATIONAL";
+    isNzCitizen: "YES" | "NO" | "";
+    residencyStatus: string;
+    residencyStatusDetails: string;
     city: string;
     address: string;
     suburb: string;
@@ -63,12 +68,21 @@ export function EditApplicantForm({ applicationId, initial }: EditApplicantFormP
       setError("Please complete or remove all chiropractic experience entries.");
       return;
     }
+    if (form.category === "DOMESTIC" && form.isNzCitizen === "NO") {
+      if (!form.residencyStatus) { setError("Please select the residency status."); return; }
+      if (form.residencyStatus === "OTHER" && !form.residencyStatusDetails.trim()) { setError("Please describe the residency status."); return; }
+    }
     setIsLoading(true);
     setError("");
     const res = await fetch(`/api/admin/applicants/${applicationId}/profile`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, gpaScore: form.gpaScore === "" ? null : form.gpaScore }),
+      body: JSON.stringify({
+        ...form,
+        gpaScore: form.gpaScore === "" ? null : form.gpaScore,
+        // Only domestic applicants are asked; leave the stored answer untouched otherwise.
+        isNzCitizen: form.category === "DOMESTIC" && form.isNzCitizen ? form.isNzCitizen === "YES" : undefined,
+      }),
     });
     setIsLoading(false);
     if (!res.ok) {
@@ -135,6 +149,28 @@ export function EditApplicantForm({ applicationId, initial }: EditApplicantFormP
             <div className="mt-3">
               <Input label="Country of citizenship" value={form.citizenshipCountry} onChange={(e) => set("citizenshipCountry", e.target.value)} />
             </div>
+            {form.category === "DOMESTIC" && (
+              <div className="mt-3 flex flex-col gap-3">
+                <Select label="NZ citizen" value={form.isNzCitizen} onChange={(e) => set("isNzCitizen", e.target.value as typeof form.isNzCitizen)}>
+                  <option value="">Not answered</option>
+                  <option value="YES">Yes</option>
+                  <option value="NO">No</option>
+                </Select>
+                {form.isNzCitizen === "NO" && (
+                  <>
+                    <Select label="Residency status" value={form.residencyStatus} onChange={(e) => set("residencyStatus", e.target.value)}>
+                      <option value="">Select…</option>
+                      {RESIDENCY_STATUS_KEYS.map((key) => (
+                        <option key={key} value={key}>{RESIDENCY_STATUS_LABELS[key]}</option>
+                      ))}
+                    </Select>
+                    {form.residencyStatus === "OTHER" && (
+                      <Input label="Describe residency status" value={form.residencyStatusDetails} onChange={(e) => set("residencyStatusDetails", e.target.value)} />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

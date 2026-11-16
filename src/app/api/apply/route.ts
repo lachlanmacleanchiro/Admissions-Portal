@@ -5,6 +5,7 @@ import { issueVerificationToken } from "@/lib/verification";
 import { sendTemplatedEmail, buildAppUrl } from "@/lib/email";
 import { getStorageProvider } from "@/lib/storage";
 import { logApplicationError } from "@/lib/errorLog";
+import { isResidencyStatus } from "@/lib/residency";
 
 const PDF_ONLY_MIME_TYPES = ["application/pdf"];
 const DOC_UPLOAD_MIME_TYPES = [
@@ -76,6 +77,7 @@ async function handleApply(req: NextRequest) {
     category, intakeYearId,
     firstName, lastName, middleName, preferredFirstName, email, password,
     dateOfBirth, gender, preferredPronouns, maoriPacificaStatus, citizenshipCountry,
+    isNzCitizen, residencyStatus, residencyStatusDetails,
     hasDisabilitySupportNeed, disabilitySupportCategory,
     hasCriminalConviction, criminalConvictionDetails,
     hasPendingLegalProceedings, pendingLegalProceedingsDetails,
@@ -94,6 +96,18 @@ async function handleApply(req: NextRequest) {
 
   if (!category || !intakeYearId || !firstName || !lastName || !email || !password) {
     return Response.json({ error: "Missing required fields." }, { status: 400 });
+  }
+  // Residency is only asked of domestic applicants, and only matters when they aren't NZ citizens.
+  const asksResidency = category === "DOMESTIC" && typeof isNzCitizen === "boolean";
+  if (category === "DOMESTIC" && typeof isNzCitizen !== "boolean") {
+    return Response.json({ error: "Please tell us whether you are a New Zealand citizen." }, { status: 400 });
+  }
+  const needsResidencyStatus = asksResidency && isNzCitizen === false;
+  if (needsResidencyStatus && !isResidencyStatus(residencyStatus)) {
+    return Response.json({ error: "Please select your residency status." }, { status: 400 });
+  }
+  if (needsResidencyStatus && residencyStatus === "OTHER" && !residencyStatusDetails?.trim()) {
+    return Response.json({ error: "Please describe your residency status." }, { status: 400 });
   }
   if (!suburb?.trim()) {
     return Response.json({ error: "Suburb is required." }, { status: 400 });
@@ -154,6 +168,9 @@ async function handleApply(req: NextRequest) {
         middleName, preferredFirstName,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         gender, preferredPronouns, maoriPacificaStatus, citizenshipCountry,
+        isNzCitizen: asksResidency ? isNzCitizen : null,
+        residencyStatus: needsResidencyStatus ? residencyStatus : null,
+        residencyStatusDetails: needsResidencyStatus && residencyStatus === "OTHER" ? residencyStatusDetails.trim() : null,
         hasDisabilitySupportNeed: !!hasDisabilitySupportNeed, disabilitySupportCategory,
         hasCriminalConviction: !!hasCriminalConviction,
         criminalConvictionDetails: hasCriminalConviction ? criminalConvictionDetails : null,
